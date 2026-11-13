@@ -31,6 +31,15 @@ The page picks its storage when it starts:
 
 The database schema, access rules (row level security) and triggers are in `supabase/migrations/`. The Supabase URL and publishable key in `index.html` are safe to expose: all access is enforced by row level security.
 
+### Email (Resend)
+
+The Supabase Edge Function `supabase/functions/send-email` sends email through Resend. Only signed-in recruiters and admins can call it, and replies go to the sender's own address. The app uses it for:
+
+- the **✉ Email** button on each candidate, with templates for interview invites, client interviews, offer follow-ups and regret emails (each sent email is saved to the candidate's notes)
+- automatic alerts to a requisition's recruiter when they're assigned a job, a candidate is added to their job, or an interview is scheduled
+
+Edge Function secrets: `RESEND_API_KEY` (required) and `RESEND_FROM` (optional, e.g. `Meridian ATS <ats@yourdomain.com>`; defaults to Resend's test sender). Until a domain is verified in Resend, Resend only delivers to the Resend account owner's own address.
+
 ### Supabase settings to check
 
 In the Supabase dashboard, open Authentication → URL Configuration and set **Site URL** to the deployed address, e.g. `https://siuuu-ats.vercel.app`. Confirmation and password-reset emails link back to that address.

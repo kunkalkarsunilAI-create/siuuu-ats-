@@ -616,7 +616,7 @@ function vCand(id){
   const notes=(c.notes||[]).slice().sort((a,b)=>a.at<b.at?1:-1);
   return `<div class="small"><a href="#candidates">← All candidates</a></div>
   <div class="page-h" style="margin-top:8px"><div><h1>${esc(c.name)}</h1><div class="sub">${esc(c.currentCompany||'')}${c.location?' · '+esc(c.location):''}</div></div><div class="hspace"></div>
-  ${w?`<div class="btn-row"><button class="btn" data-act="editCand" data-id="${id}">Edit</button><button class="btn primary" data-act="applyCand" data-id="${id}">+ Add to a job</button></div>`:''}</div>
+  ${w?`<div class="btn-row">${S.mode==='supa'&&c.email?`<button class="btn" data-act="emailCand" data-id="${id}">✉ Email</button>`:''}<button class="btn" data-act="editCand" data-id="${id}">Edit</button><button class="btn primary" data-act="applyCand" data-id="${id}">+ Add to a job</button></div>`:''}</div>
   <div class="two">
     <div>
       <div class="card">
@@ -848,6 +848,50 @@ const AUTH_FORMS={
     if(error)return setAuthMsg(error.message,true);S.authView='login';S.authMsg=null;const {data:{session}}=await S.sb.auth.getSession();if(session)startSupa(session)},
 };
 
+/* ---------------- Email (Resend via Supabase Edge Function) ---------------- */
+const EMAIL_TEMPLATES=[
+  ['interview','Interview invitation'],['client','Client interview'],['offer','Offer follow-up'],['reject','Application update (regret)'],['blank','Blank message']];
+function myName(){return (S.names&&S.names[S.me]&&S.names[S.me]!==S.me)?S.names[S.me]:'Talent Acquisition Team'}
+function fillTemplate(kind,c,a){
+  const j=a?S.jobs[a.jobId]||{}:{};const first=(c.name||'').split(' ')[0]||'there';const job=j.title||'the role';
+  const iv=a?(a.interviews||[]).filter(x=>x.outcome==='Scheduled'&&x.at).sort((x,y)=>x.at<y.at?1:-1)[0]:null;
+  const when=iv?new Date(iv.at).toLocaleString('en-IN',{weekday:'long',day:'numeric',month:'long',hour:'numeric',minute:'2-digit'}):'[date and time]';
+  const sign=`\n\nBest regards,\n${myName()}\nTalent Acquisition, Meridian Technologies`;
+  if(kind==='interview')return [`Interview invitation: ${job} at Meridian Technologies`,`Hi ${first},\n\nThank you for your interest in the ${job} role at Meridian Technologies. We'd like to invite you to an interview.\n\nWhen: ${when}\nMode: ${iv?iv.mode||'Video':'Video'}${iv&&iv.panel?`\nPanel: ${iv.panel}`:''}\n\nPlease reply to confirm this slot works for you, or suggest another time.${sign}`];
+  if(kind==='client')return [`Client interview: ${job}`,`Hi ${first},\n\nGood news — you've cleared our internal rounds for the ${job} role. The next step is an interview with our client${j.client?` (${j.client.replace(/\s*\(.*\)$/,'')})`:''}.\n\nWhen: ${when}\nMode: ${iv?iv.mode||'Video':'Video'}\n\nPlease reply to confirm, and keep your notice-period details handy in case they come up.${sign}`];
+  if(kind==='offer')return [`Your offer from Meridian Technologies: ${job}`,`Hi ${first},\n\nCongratulations again on your offer for the ${job} role${a&&a.offer&&a.offer.joiningDate?`, with a joining date of ${fmtDate(a.offer.joiningDate)}`:''}.\n\nIf you have any questions about the offer, joining formalities or background verification, just reply to this email — we're happy to help.${sign}`];
+  if(kind==='reject')return [`Your application for ${job} at Meridian Technologies`,`Hi ${first},\n\nThank you for the time you spent with us on the ${job} role. After careful consideration, we won't be moving forward with your application at this stage.\n\nWe'd like to keep you in mind for future openings that match your experience. Thank you again, and we wish you the very best.${sign}`];
+  return ['',`Hi ${first},\n\n${sign.trim()}`];
+}
+function emailForm(cid){
+  const c=S.candidates[cid];const apps=candApps(cid).sort((a,b)=>(a.updatedAt<b.updatedAt?1:-1));
+  const a=apps[0];const [sub,txt]=fillTemplate('interview',c,a);
+  openModal('Email '+c.name,`<form data-form="email" data-id="${cid}"><div class="mb">
+    ${!c.consent?'<div class="alert amber" style="margin-bottom:12px">No DPDP consent is recorded for this candidate.</div>':''}
+    <div class="form">
+      ${field('To',`<input value="${esc(c.email)}" disabled>`)}
+      ${field('Template',sel('tpl',EMAIL_TEMPLATES,'interview','data-tpl'))}
+      ${apps.length?field('About which job',sel('app',apps.map(x=>[x.id,(S.jobs[x.jobId]||{}).title||'Job']),a&&a.id,'data-tplapp'),{full:true}):''}
+      ${field('Subject',`<input name="subject" required value="${esc(sub)}">`,{full:true})}
+      ${field('Message',`<textarea name="text" required style="min-height:240px">${esc(txt)}</textarea>`,{full:true,hint:'Replies go to your own email address. A copy is saved to the candidate\'s notes.'})}
+    </div><div class="err" id="form-err"></div></div>${foot('Send email')}</form>`,{wide:true});
+}
+async function sendEmail(to,subject,text){
+  const {data,error}=await S.sb.functions.invoke('send-email',{body:{to,subject,text}});
+  if(error){let msg=error.message;try{const b=await error.context.json();if(b&&b.error)msg=b.error}catch(_){}throw new Error(msg)}
+  return data;
+}
+function recruiterEmailFor(j){
+  if(!j)return null;if(j.recruiterEmail)return j.recruiterEmail;
+  const m=(S.team||[]).find(t=>t.name&&j.recruiter&&t.name.trim().toLowerCase()===j.recruiter.trim().toLowerCase());
+  return m?m.email:null;
+}
+function alertRecruiter(j,subject,text){
+  if(S.mode!=='supa'||!S.canWrite)return;
+  const to=recruiterEmailFor(j);if(!to||to===S.me)return;
+  sendEmail(to,'[Meridian ATS] '+subject,text+`\n\nOpen in Meridian ATS: ${location.origin}${location.pathname}#job-${j.id}\n\n— Sent automatically by Meridian ATS on behalf of ${myName()}`).catch(e=>console.warn('Alert email not sent:',e.message));
+}
+
 /* ============================================================
    Modals
    ============================================================ */
@@ -879,7 +923,7 @@ function jobForm(j){
     ${field('Openings',inp('openings',j.openings,'type="number" min="1"'))}
     ${field('Target closure date',inp('targetDate',j.targetDate,'type="date"'))}
     ${field('Status',sel('status',['Open','On hold','Closed'],j.status))}
-    ${field('Recruiter',sel('recruiter',[['','Unassigned'],...(S.config.team||[])],j.recruiter))}
+    ${field('Recruiter',sel('recruiter',[['','Unassigned'],...[...new Set([...(S.config.team||[]),...(S.team||[]).filter(t=>t.role!=='viewer'&&t.name).map(t=>t.name),...(j.recruiter?[j.recruiter]:[])])]],j.recruiter),{hint:S.mode==='supa'?'Recruiters on the Team access list get email alerts.':''})}
     ${field('Hiring manager',inp('hiringManager',j.hiringManager,'list="dl-mgr"')+`<datalist id="dl-mgr">${(S.config.managers||[]).map(c=>`<option value="${esc(c)}">`).join('')}</datalist>`)}
   </div></div>${foot(j.id?'Save':'Open requisition',j.id?`<button type="button" class="btn danger" style="margin-right:auto" data-act="deleteJob" data-id="${j.id}">Delete</button>`:'')}</form>`,{wide:true});
 }
@@ -1008,7 +1052,10 @@ function statusText(jid){
    ============================================================ */
 async function createApp(cid,jid){
   const a={id:uid('a'),candidateId:cid,jobId:jid,stage:'Applied',history:[{stage:'Applied',at:nowISO(),by:S.me||null}],interviews:[],createdAt:nowISO()};
-  await put('applications',a);return a;
+  await put('applications',a);
+  const c=S.candidates[cid]||{},j=S.jobs[jid];
+  alertRecruiter(j,`New candidate for ${j&&j.title}: ${c.name}`,`${c.name} was added to ${j&&j.title} (${(j&&j.client)||'Bench'}).\n\nExperience: ${c.totalExp??'?'} years · Notice: ${c.noticeDays??'?'} days · Expected CTC: ${lakh(c.expectedCtc)}\nSource: ${sourceLabel(c)}`);
+  return a;
 }
 async function moveApp(a,to,extra={}){
   const n={...a,stage:to,history:[...(a.history||[]),{stage:to,at:nowISO(),by:S.me||null,...extra}]};
@@ -1057,6 +1104,7 @@ const ACT={
     confirmBox('Erase inactive candidates',`Permanently erase ${plural(stale.length,'candidate')} and their applications?`,'Erase all',async()=>{await runPool(stale.map(c=>()=>eraseCandidate(c.id,true)));scheduleRender();toast('Erased '+plural(stale.length,'candidate'))})},
   confirmYes:async()=>{const f=S._confirm;S._confirm=null;closeModal();if(f)try{await f()}catch(_){}},
   loadSample:()=>loadSample(),
+  emailCand:d=>emailForm(d.id),
   authView:d=>{S.authView=d.v;S.authMsg=null;render()},
   signOut:async()=>{if(S.clerk)await S.clerk.signOut();else if(S.sb)await S.sb.auth.signOut();location.reload()},
   delMember:d=>confirmBox('Remove access',`Remove <b>${esc(d.email)}</b> from Meridian ATS? They won't be able to see any data.`,'Remove',async()=>{const {error}=await S.sb.from('team_members').delete().eq('email',d.email);if(error)toast(error.message,true);await loadTeam()}),
@@ -1074,6 +1122,8 @@ const FORMS={
       skills:splitList(fd.get('skills')),expMin:num(fd.get('expMin')),expMax:num(fd.get('expMax')),ctcMin:num(fd.get('ctcMin')),ctcMax:num(fd.get('ctcMax')),location:fd.get('location'),
       openings:num(fd.get('openings'))||1,targetDate:fd.get('targetDate')||null,status:fd.get('status'),recruiter:fd.get('recruiter'),hiringManager:fd.get('hiringManager').trim()};
     if(!old){j.createdAt=nowISO();j.openedAt=j.createdAt;j.createdBy=S.me||null}
+    const tm=(S.team||[]).find(t=>t.name&&j.recruiter&&t.name.trim().toLowerCase()===j.recruiter.trim().toLowerCase());j.recruiterEmail=tm?tm.email:null;
+    if(j.recruiter&&(!old||old.recruiter!==j.recruiter))setTimeout(()=>alertRecruiter(j,`You've been assigned: ${j.title}`,`You're the recruiter for ${j.title} (${j.client||'Bench'}${j.project?' / '+j.project:''}).\n\nOpenings: ${j.openings||1} · Target date: ${fmtDate(j.targetDate)} · Location: ${j.location||'—'}\nSkills: ${(j.skills||[]).join(', ')||'—'}`),0);
     if(old&&old.status!=='Closed'&&j.status==='Closed')j.closedAt=nowISO();
     if(old&&old.status==='Closed'&&j.status==='Open')j.openedAt=nowISO();
     closeModal();await put('jobs',j);if(!old){location.hash='job-'+j.id;toast('Requisition opened')}else toast('Saved');
@@ -1108,8 +1158,17 @@ const FORMS={
   interview:async(f,fd)=>{
     const a=S.applications[f.dataset.id];const iv=[...(a.interviews||[])];
     const at=fd.get('at');const x={round:fd.get('round'),mode:fd.get('mode'),at:at?new Date(at).toISOString():null,outcome:fd.get('outcome'),panel:fd.get('panel').trim(),feedback:fd.get('feedback').trim()};
-    if(f.dataset.k!=='')iv[+f.dataset.k]=x;else iv.push(x);
+    const isNew=f.dataset.k==='';
+    if(!isNew)iv[+f.dataset.k]=x;else iv.push(x);
     closeModal();await put('applications',{...a,interviews:iv});toast('Interview saved');
+    if(isNew&&x.outcome==='Scheduled'){const c=S.candidates[a.candidateId]||{},j=S.jobs[a.jobId];alertRecruiter(j,`Interview scheduled: ${c.name} for ${j&&j.title}`,`${x.round} with ${c.name} for ${j&&j.title}.\n\nWhen: ${fmtDT(x.at)}\nMode: ${x.mode}${x.panel?`\nPanel: ${x.panel}`:''}`)}
+  },
+  email:async(f,fd)=>{
+    const c=S.candidates[f.dataset.id];const btn=f.querySelector('.mf .btn.primary');btn.disabled=true;btn.textContent='Sending…';
+    const subject=fd.get('subject').trim(),text=fd.get('text');
+    try{await sendEmail(c.email,subject,text)}catch(e){btn.disabled=false;btn.textContent='Send email';$('#form-err').textContent='Not sent: '+e.message;return}
+    closeModal();toast('Email sent to '+c.email);
+    const cur=S.candidates[c.id];await put('candidates',{...cur,notes:[...(cur.notes||[]),{id:uid('n'),text:`✉ Emailed: ${subject}\n\n${text}`,by:S.me||null,at:nowISO()}]});
   },
   member:async(f,fd)=>{const email=fd.get('email').trim().toLowerCase();
     const {error}=await S.sb.from('team_members').upsert({email,name:fd.get('name').trim()||null,role:fd.get('role')});
@@ -1147,6 +1206,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.filter&&t.tagName==='SELECT'){const [g,k]=t.dataset.filter.split('.');S.f[g][k]=t.value;scheduleRender();return}
   if(t.dataset.filter&&t.type==='checkbox'){const [g,k]=t.dataset.filter.split('.');S.f[g][k]=t.checked;scheduleRender();return}
   if(t.hasAttribute('data-src')){const box=t.closest('form').querySelector('[data-srcdetail]');box.innerHTML=srcDetail(t.value,'');return}
+  if(t.hasAttribute('data-tpl')||t.hasAttribute('data-tplapp')){const f=t.closest('form');const c=S.candidates[f.dataset.id];const a=f.app?S.applications[f.app.value]:null;const [sub,txt]=fillTemplate(f.tpl.value,c,a);f.subject.value=sub;f.text.value=txt;return}
   if(t.hasAttribute('data-kind')){t.closest('form').querySelector('[data-reasons]').innerHTML=reasonSel(t.value);return}
   if(t.dataset.actChange==='role'){S.sb.from('team_members').update({role:t.value}).eq('email',t.dataset.email).then(({error})=>{if(error)toast(error.message,true);else toast('Role updated');loadTeam()});return}
   if(t.dataset.actChange==='bgv'){const a=S.applications[t.dataset.id];put('applications',{...a,bgv:t.value}).then(()=>toast('BGV: '+t.value)).catch(()=>{})}
