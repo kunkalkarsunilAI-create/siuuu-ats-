@@ -759,7 +759,7 @@ async function bootClerk(){
   try{
     await Promise.all([
       window.supabase?null:loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'),
-      window.Clerk?null:loadScriptAttrs(`https://${fapi}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`,{'data-clerk-publishable-key':CLERK_PK})
+      window.Clerk?null:loadScriptAttrs(`https://${fapi}/npm/@clerk/clerk-js@latest/dist/clerk.browser.js`,{'data-clerk-publishable-key':CLERK_PK})
     ]);
     await window.Clerk.load({appearance:{variables:{colorPrimary:'#1d5a8a',fontFamily:'"IBM Plex Sans",system-ui,sans-serif',borderRadius:'8px'}}});
   }catch(e){console.error(e);S.mode='memory';S.supaFail=true;render();return}
