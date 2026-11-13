@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meridian ATS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f5f4f0; --surface:#ffffff; --surface-2:#faf9f6; --ink:#17191c; --ink-2:#4a4b4f; --muted:#7a7974;
+  --line:#e3e1da; --line-2:#efede7;
+  --accent:#1d5a8a; --accent-ink:#ffffff; --accent-soft:#e6eff7;
+  --danger:#b42318; --danger-soft:#fdecea; --warn:#9a4b00; --warn-soft:#fff3e0; --ok:#0f6b3a; --ok-soft:#e6f4ec;
+  --bar:#2a78d6;
+  --r:8px;
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+button,input,select,textarea{font:inherit;color:inherit}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12.5px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+
+/* Header */
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#fff;display:flex;align-items:center;gap:20px;padding:0 24px;height:54px}
+.brand{font-weight:600;letter-spacing:.2px;white-space:nowrap}
+.brand span{color:#9cc3e4;font-weight:400}
+nav{display:flex;gap:2px;height:100%;overflow-x:auto}
+nav a{color:#c9cbd0;display:flex;align-items:center;padding:0 12px;border-bottom:2px solid transparent;white-space:nowrap}
+nav a:hover{color:#fff;text-decoration:none}
+nav a.on{color:#fff;border-bottom-color:#9cc3e4}
+.hspace{flex:1}
+header .btn{background:#2b2e33;border-color:#3a3d43;color:#fff}
+header .btn:hover{background:#383c42}
+header .btn.primary{background:var(--accent);border-color:var(--accent)}
+
+#banner:empty{display:none}
+.banner{padding:9px 24px;font-size:13px;border-bottom:1px solid var(--line)}
+.banner.warn{background:var(--warn-soft);color:var(--warn)}
+.banner.info{background:var(--accent-soft);color:var(--accent)}
+
+main{padding:22px 24px 60px;max-width:1440px;margin:0 auto}
+h1{font-size:21px;font-weight:600;margin:0}
+h2{font-size:15px;font-weight:600;margin:0}
+h3{font-size:13px;font-weight:600;margin:0 0 8px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px}
+.page-h{display:flex;align-items:flex-end;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.page-h .sub{color:var(--muted);margin-top:3px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;font-size:13px;font-weight:500}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--danger);border-color:#f0c4bf}
+.btn.danger:hover{background:var(--danger-soft)}
+.btn.sm{padding:3px 8px;font-size:12px}
+.btn.icon{padding:3px 7px;min-width:26px;justify-content:center}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* Cards / grid */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:1000px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3,.g2{grid-template-columns:1fr}}
+.stat .label{color:var(--muted);font-size:12.5px}
+.stat .val{font-size:28px;font-weight:600;margin-top:2px;letter-spacing:-.5px}
+.stat .foot{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.meter{height:6px;background:var(--line-2);border-radius:3px;margin-top:8px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--bar);border-radius:3px}
+
+/* Bars */
+.bars{display:flex;flex-direction:column;gap:7px}
+.bar-row{display:grid;grid-template-columns:150px 1fr 44px;align-items:center;gap:10px;font-size:13px}
+.bar-row .lbl{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{height:14px;position:relative}
+.bar-fill{height:100%;background:var(--bar);border-radius:0 4px 4px 0;min-width:2px}
+.bar-row .n{text-align:right;font-variant-numeric:tabular-nums}
+.bar-row:hover .bar-fill{filter:brightness(1.12)}
+
+/* Tables */
+.table-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#f7f9fb}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.empty{padding:36px;text-align:center;color:var(--muted)}
+
+/* Pills */
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:500;white-space:nowrap;border:1px solid transparent;line-height:1.6}
+.st-applied{background:#f0efea;color:#4a4b4f}
+.st-screened{background:#eceff4;color:#3c4a5c}
+.st-internal-interview{background:#e5eefa;color:#1d4f86}
+.st-client-round{background:#efe9fb;color:#5532a8}
+.st-offered{background:#fff1d6;color:#8a5300}
+.st-bgv{background:#e2f4f2;color:#0d6159}
+.st-joined{background:var(--ok-soft);color:var(--ok)}
+.st-rejected{background:var(--danger-soft);color:var(--danger)}
+.st-dropped-out{background:#f1f1f1;color:#666;border-color:#ddd}
+.tag{display:inline-block;padding:0 6px;border-radius:4px;background:var(--line-2);color:var(--ink-2);font-size:11.5px;margin:1px 3px 1px 0}
+.flag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;padding:1px 7px;border-radius:4px}
+.flag.red{background:var(--danger-soft);color:var(--danger)}
+.flag.amber{background:var(--warn-soft);color:var(--warn)}
+.flag.green{background:var(--ok-soft);color:var(--ok)}
+.flag.grey{background:var(--line-2);color:var(--ink-2)}
+
+/* Filters */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.filters input,.filters select{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 10px;font-size:13px}
+.filters input[type=search]{min-width:240px}
+.filters label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2)}
+
+/* Kanban */
+.kanban{display:grid;grid-template-columns:repeat(7,minmax(172px,1fr));gap:10px;overflow-x:auto;padding-bottom:6px}
+.lane{background:#ecebe6;border-radius:var(--r);padding:8px;min-height:120px}
+.lane-h{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 8px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.kcard{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:9px 10px;margin-bottom:7px;font-size:12.5px}
+.kcard .nm{font-weight:600;font-size:13px;display:block;color:var(--ink)}
+.kcard .meta{color:var(--muted);margin-top:2px}
+.kcard .flags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.kcard .acts{display:flex;gap:4px;margin-top:7px;justify-content:flex-end;flex-wrap:wrap}
+
+/* Candidate page */
+.two{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:13px}
+dl.kv dt{color:var(--muted)}
+dl.kv dd{margin:0}
+.stepper{display:flex;gap:3px;margin:12px 0}
+.stepper .s{flex:1;text-align:center;font-size:11px;color:var(--muted);padding-top:7px;border-top:4px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stepper .s.done{border-top-color:#8fb6dc;color:var(--ink-2)}
+.stepper .s.cur{border-top-color:var(--accent);color:var(--accent);font-weight:600}
+.stepper.closed .s.cur{border-top-color:var(--danger);color:var(--danger)}
+.section{border-top:1px solid var(--line-2);margin-top:14px;padding-top:12px}
+.section-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.note{padding:9px 0;border-bottom:1px solid var(--line-2)}
+.note:last-child{border-bottom:0}
+.note .by{font-size:12px;color:var(--muted);margin-bottom:2px}
+.note .tx{white-space:pre-wrap}
+.hist{font-size:12.5px;margin:0;padding-left:16px;color:var(--ink-2)}
+.hist li{margin:2px 0}
+details summary{cursor:pointer;color:var(--accent);font-size:12.5px}
+textarea.note-in{width:100%;min-height:64px;border:1px solid var(--line);border-radius:6px;padding:8px;resize:vertical}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(20,22,25,.45);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;overflow-y:auto}
+.modal{background:var(--surface);border-radius:10px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal.wide{max-width:780px}
+.mh{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+.mb{padding:16px 18px}
+.mf{padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;background:var(--surface-2);border-radius:0 0 10px 10px}
+.x{border:0;background:none;font-size:22px;line-height:1;cursor:pointer;color:var(--muted)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.form .full{grid-column:1/-1}
+.field label{display:block;font-size:12.5px;color:var(--ink-2);margin-bottom:4px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:#fff}
+.field textarea{min-height:70px;resize:vertical}
+.field .hint{font-size:11.5px;color:var(--muted);margin-top:3px}
+.field input:focus,.field select:focus,.field textarea:focus,.filters input:focus,.filters select:focus,textarea.note-in:focus{outline:2px solid #9cc3e4;outline-offset:0;border-color:var(--accent)}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.check input,.field .check input{width:auto;margin-top:3px;flex:none}
+.alert{border-radius:6px;padding:10px 12px;font-size:13px}
+.alert.red{background:var(--danger-soft);color:#7a1810;border:1px solid #f3c7c1}
+.alert.amber{background:var(--warn-soft);color:#6d3600;border:1px solid #f6d3a5}
+.alert.blue{background:var(--accent-soft);color:#173f61;border:1px solid #c8dcee}
+.alert b{font-weight:600}
+.alert ul{margin:6px 0 0;padding-left:18px}
+.err{color:var(--danger);font-size:12.5px;margin-top:8px}
+.pick-list{max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;margin-top:8px}
+.pick{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line-2);cursor:pointer}
+.pick:hover{background:#f4f7fa}
+.pick:last-child{border-bottom:0}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:6px;align-items:center}
+.toast{background:var(--ink);color:#fff;padding:9px 16px;border-radius:6px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.toast.bad{background:var(--danger)}
+.loading{padding:60px;text-align:center;color:var(--muted)}
+.attn li{margin-bottom:6px}
+@media (max-width:700px){
+  header{padding:0 12px;gap:10px}
+  main{padding:14px 12px 50px}
+  header .hide-sm{display:none}
+  .form{grid-template-columns:1fr}
+  .bar-row{grid-template-columns:110px 1fr 36px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Meridian <span>ATS</span></div>
+  <nav id="nav">
+    <a href="#dashboard" data-v="dashboard">Dashboard</a>
+    <a href="#jobs" data-v="jobs">Jobs</a>
+    <a href="#candidates" data-v="candidates">Candidates</a>
+    <a href="#settings" data-v="settings">Settings</a>
+  </nav>
+  <div class="hspace"></div>
+  <div class="btn-row hide-sm" id="hdr-actions"></div>
+</header>
+<div id="banner"></div>
+<main id="main"><div class="loading">Loading…</div></main>
+<div id="modal-root"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   Constants
+   ============================================================ */
+const STAGES=['Applied','Screened','Internal Interview','Client Round','Offered','BGV','Joined'];
+const CLOSED=['Rejected','Dropped Out'];
+const SOURCES=['Naukri','LinkedIn','Employee Referral','Consultancy','Direct'];
+const REJECT_REASONS=['Skills mismatch','Experience mismatch','CTC expectation too high','Notice period too long','Failed internal interview','Rejected by client','Failed BGV','Communication skills','Position closed / on hold','Duplicate profile','Other'];
+const DROP_REASONS=['Accepted another offer','Counter-offer from current employer','No longer interested','Location / relocation','Joining date too late','Stopped responding','Personal reasons','Other'];
+const INTERVIEW_ROUNDS=['Internal L1 (technical)','Internal L2 (technical)','Client round','Managerial','HR'];
+const INTERVIEW_OUTCOMES=['Scheduled','Selected','Rejected','No show','Rescheduled'];
+const BGV_STATUS=['Not started','Initiated','In progress','Clear','Discrepancy'];
+const DEFAULT_CONFIG={team:['Recruiter 1','Recruiter 2','Recruiter 3','Recruiter 4'],managers:[],consultancies:['Consultancy A','Consultancy B','Consultancy C'],commission:8.33,quarterTarget:60,retentionMonths:24};
+
+/* ============================================================
+   State
+   ============================================================ */
+const S={
+  jobs:{},candidates:{},applications:{},config:{...DEFAULT_CONFIG},
+  mode:'loading',db:null,user:null,me:null,canWrite:true,names:{},nameReq:new Set(),
+  confirmed:{},slow:false,dbError:null,
+  route:{view:'dashboard',id:null},
+  f:{jobs:{q:'',status:'Open',client:''},cands:{q:'',skill:'',source:'',notice:'',stage:'',active:false}}
+};
+
+/* ============================================================
+   Utilities
+   ============================================================ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const nowISO=()=>new Date().toISOString();
+const todayStr=()=>new Date().toISOString().slice(0,10);
+const fmtDate=iso=>{if(!iso)return '—';const d=new Date(iso);return isNaN(d)?'—':d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})};
+const fmtShort=iso=>{if(!iso)return '—';const d=new Date(iso);return isNaN(d)?'—':d.toLocaleDateString('en-IN',{day:'numeric',month:'short'})};
+const fmtDT=iso=>{if(!iso)return '—';const d=new Date(iso);return isNaN(d)?'—':d.toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})};
+const dayMs=864e5;
+const daysBetween=(a,b)=>Math.round((new Date(b)-new Date(a))/dayMs);
+const daysFromToday=d=>d?Math.ceil((new Date(d+'T23:59:59')-new Date())/dayMs):null;
+const normPhone=p=>String(p||'').replace(/\D/g,'').slice(-10);
+const lakh=n=>(n===''||n==null||isNaN(n))?'—':'₹'+(+n).toFixed(2).replace(/\.?0+$/,'')+' L';
+const num=v=>v===''||v==null?null:(isNaN(+v)?null:+v);
+const splitList=s=>String(s||'').split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
+const slug=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-');
+const list=col=>Object.values(S[col]);
+const pct=(a,b)=>b?Math.round(a/b*100)+'%':'—';
+const plural=(n,w)=>n+' '+w+(n===1?'':'s');
+const stageIdx=s=>STAGES.indexOf(s);
+const isClosed=a=>CLOSED.includes(a.stage);
+const isActive=a=>!isClosed(a)&&a.stage!=='Joined';
+const pill=s=>`<span class="pill st-${slug(s)}">${esc(s)}</span>`;
+const jobApps=jid=>list('applications').filter(a=>a.jobId===jid);
+const candApps=cid=>list('applications').filter(a=>a.candidateId===cid);
+const stageDate=(a,stage)=>{const h=(a.history||[]).filter(x=>x.stage===stage);return h.length?h[h.length-1].at:null};
+const reached=(a,stage)=>(a.history||[]).some(h=>h.stage===stage)||stageIdx(a.stage)>=stageIdx(stage);
+const daysLeft=j=>j&&j.targetDate?daysFromToday(j.targetDate):null;
+const quarterStart=()=>{const d=new Date();return new Date(d.getFullYear(),Math.floor(d.getMonth()/3)*3,1)};
+const quarterLabel=()=>{const d=new Date(),q=Math.floor(d.getMonth()/3);return ['Jan–Mar','Apr–Jun','Jul–Sep','Oct–Dec'][q]+' '+d.getFullYear()};
+const nameOf=id=>!id?'—':id===S.me?'You':(S.names[id]||'Team member');
+const sourceLabel=c=>c.source==='Consultancy'?('Consultancy · '+(c.sourceDetail||'unspecified')):c.source==='Employee Referral'&&c.sourceDetail?('Referral · '+c.sourceDetail):(c.source||'—');
+
+function lastActivity(c){
+  let t=c.updatedAt||c.createdAt||'';
+  for(const a of candApps(c.id)) if((a.updatedAt||'')>t) t=a.updatedAt;
+  for(const n of c.notes||[]) if((n.at||'')>t) t=n.at;
+  return t;
+}
+function noticeFlag(c,j){
+  const dl=daysLeft(j);
+  if(dl==null||c.noticeDays==null) return '';
+  if(c.noticeDays>Math.max(dl,0)) return `<span class="flag red" title="Can join in ${c.noticeDays} days; requisition target is ${dl<0?Math.abs(dl)+' days overdue':dl+' days away'}">⚠ Notice ${c.noticeDays}d &gt; ${dl<0?'target passed':dl+'d left'}</span>`;
+  return `<span class="flag green" title="Can join before the target date">Notice ${c.noticeDays}d ✓</span>`;
+}
+function offerRisk(a,c){
+  if(!a.offer||!['Offered','BGV'].includes(a.stage)) return null;
+  const o=a.offer,r=[];let s=0;
+  if((o.otherOffers||0)>0){s+=2;r.push(`Holding ${o.otherOffers} other offer${o.otherOffers>1?'s':''}`)}
+  if(o.counterOffer==='Yes'){s+=2;r.push('Current employer likely to counter')}
+  if((c.noticeDays||0)>=60){s+=1;r.push(`Long notice (${c.noticeDays}d)`)}
+  if(o.joiningDate){const d=daysFromToday(o.joiningDate);if(d>45){s+=1;r.push(`Joining ${d} days away`)}}
+  if(c.currentCtc&&o.ctc&&o.ctc/c.currentCtc>1.5){s+=1;r.push('Hike above 50% — possible offer shopping')}
+  if(c.expectedCtc&&o.ctc&&o.ctc<c.expectedCtc){s+=1;r.push('Offer below expected CTC')}
+  const level=s>=3?'High':s>=2?'Medium':'Low';
+  return {level,score:s,reasons:r};
+}
+function riskFlag(a,c){
+  const r=offerRisk(a,c);if(!r)return '';
+  const cls=r.level==='High'?'red':r.level==='Medium'?'amber':'green';
+  return `<span class="flag ${cls}" title="${esc(r.reasons.join(' · ')||'No risk signals')}">Drop risk: ${r.level}</span>`;
+}
+
+/* ============================================================
+   Storage layer: shared db when available, in-memory otherwise
+   ============================================================ */
+const chains={};
+function clean(o){return JSON.parse(JSON.stringify(o))}
+function enqueue(key,fn){const p=(chains[key]||Promise.resolve()).then(fn,fn);chains[key]=p.catch(()=>{});return p}
+async function put(col,obj,{quiet}={}){
+  obj.updatedAt=nowISO();
+  S[col][obj.id]=obj;
+  if(!quiet) scheduleRender();
+  if(S.mode!=='live') return;
+  try{ await enqueue(col+'/'+obj.id,()=>S.db.collection(col).doc(obj.id).set(clean(obj))); }
+  catch(e){ handleWriteError(e); throw e; }
+}
+async function del(col,id,{quiet}={}){
+  delete S[col][id];
+  if(!quiet) scheduleRender();
+  if(S.mode!=='live') return;
+  try{ await enqueue(col+'/'+id,()=>S.db.collection(col).doc(id).delete()); }
+  catch(e){ handleWriteError(e); throw e; }
+}
+async function saveConfig(cfg){
+  S.config={...S.config,...cfg};scheduleRender();
+  if(S.mode!=='live') return;
+  try{ await enqueue('config',()=>S.db.doc('config/main').set(clean(S.config))); }
+  catch(e){ handleWriteError(e); throw e; }
+}
+function handleWriteError(e){
+  const code=e&&e.code;
+  if(code==='invalid_argument'&&S.canWrite!==true){S.canWrite=false;scheduleRender();toast('You have view-only access, so changes cannot be saved.',true);return}
+  if(code==='quota_exceeded'){toast('Storage is full: erase old candidates in Settings → Data retention.',true);return}
+  toast('Could not save: '+(e&&e.message||'unknown error'),true);
+}
+async function runPool(tasks,n=4){let i=0;const w=async()=>{while(i<tasks.length){const t=tasks[i++];await t()}};await Promise.all(Array.from({length:n},w))}
+
+/* ============================================================
+   Rendering
+   ============================================================ */
+let renderQueued=false;
+function scheduleRender(){if(renderQueued)return;renderQueued=true;requestAnimationFrame(()=>{renderQueued=false;render()})}
+
+function render(){
+  // keep focus & caret in filter inputs across re-renders
+  const ae=document.activeElement;const fk=ae&&ae.dataset&&ae.dataset.filter;
+  const sel=fk&&ae.selectionStart!=null?[ae.selectionStart,ae.selectionEnd]:null;
+  const scroll=window.scrollY;
+
+  document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===S.route.view||(S.route.view==='job'&&a.dataset.v==='jobs')||(S.route.view==='cand'&&a.dataset.v==='candidates')));
+  $('#hdr-actions').innerHTML=S.canWrite&&S.mode!=='loading'?`<button class="btn" data-act="newJob">+ Job</button><button class="btn primary" data-act="newCand">+ Candidate</button>`:'';
+  renderBanner();
+  const m=$('#main');
+  if(S.mode==='loading'||(S.mode==='live'&&!S.gotAll&&!S.slow&&!S.dbError)){m.innerHTML='<div class="loading">Loading…</div>';return}
+  const v=S.route.view;
+  m.innerHTML=v==='jobs'?vJobs():v==='job'?vJob(S.route.id):v==='candidates'?vCands():v==='cand'?vCand(S.route.id):v==='settings'?vSettings():vDashboard();
+  if(fk){const el=document.querySelector(`[data-filter="${fk}"]`);if(el){el.focus();if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(_){}}}
+  if(S._keepScroll) window.scrollTo(0,scroll);
+  S._keepScroll=true;
+  resolveNames();
+}
+function renderBanner(){
+  let h='';
+  if(S.mode==='memory') h=`<div class="banner warn">Preview mode — shared storage isn't available in this view, so nothing you enter here is saved.</div>`;
+  else if(S.dbError==='revoked') h=`<div class="banner warn">Access to the saved data ended. Reload the page to reconnect.</div>`;
+  else if(S.dbError) h=`<div class="banner warn">Live updates stopped (${esc(S.dbError)}). Reload the page to reconnect.</div>`;
+  else if(S.slow) h=`<div class="banner warn">Can't reach the saved data yet — what you see may be out of date.</div>`;
+  else if(S.mode==='live'&&!S.canWrite) h=`<div class="banner info">View-only access: you can review candidates and pipelines. Ask the Head of TA for Contributor access to make changes.</div>`;
+  $('#banner').innerHTML=h;
+}
+async function resolveNames(){
+  if(!S.user||!S.user.profiles) return;
+  const ids=new Set();
+  for(const c of list('candidates')){(c.notes||[]).forEach(n=>n.by&&ids.add(n.by));c.createdBy&&ids.add(c.createdBy)}
+  for(const a of list('applications'))(a.history||[]).forEach(h=>h.by&&ids.add(h.by));
+  const miss=[...ids].filter(i=>i!==S.me&&!(i in S.names)&&!S.nameReq.has(i));
+  if(!miss.length) return;
+  miss.forEach(i=>S.nameReq.add(i));
+  try{
+    const ps=await S.user.profiles(miss);let added=false;
+    for(const i of miss){const n=ps&&ps[i]&&ps[i].name;S.names[i]=n||'Team member';added=true}
+    if(added) scheduleRender();
+  }catch(_){}
+}
+
+/* ---------------- Dashboard ---------------- */
+function bars(rows,{fmt=v=>v,empty='No data yet'}={}){
+  if(!rows.length||rows.every(r=>!r[1])) return `<div class="muted small">${empty}</div>`;
+  const max=Math.max(...rows.map(r=>r[1]),1);
+  return `<div class="bars">${rows.map(([l,v,tip])=>`<div class="bar-row" title="${esc(tip||l+': '+fmt(v))}"><span class="lbl">${esc(l)}</span><div class="bar-track"><div class="bar-fill" style="width:${v/max*100}%"></div></div><span class="n">${fmt(v)}</span></div>`).join('')}</div>`;
+}
+function vDashboard(){
+  const jobs=list('jobs'),apps=list('applications'),cands=list('candidates');
+  if(!jobs.length&&!cands.length){
+    return `<div class="page-h"><div><h1>Welcome to Meridian ATS</h1><div class="sub">One shared place for every requisition, candidate and pipeline.</div></div></div>
+    <div class="card" style="max-width:640px">
+      <h2 style="margin-bottom:8px">Nothing here yet</h2>
+      <p class="muted" style="margin-top:0">Start by adding your team's names in Settings, then open a job requisition and add candidates to it. Or load a set of sample data to explore first; you can remove it in one click later.</p>
+      ${S.canWrite?`<div class="btn-row"><button class="btn primary" data-act="newJob">+ Open a job requisition</button><button class="btn" data-act="loadSample">Load sample data</button><a class="btn" href="#settings">Settings</a></div>`:''}
+    </div>`;
+  }
+  const open=jobs.filter(j=>j.status==='Open');
+  const openings=open.reduce((s,j)=>s+(+j.openings||1),0);
+  const filledOpen=open.reduce((s,j)=>s+jobApps(j.id).filter(a=>a.stage==='Joined').length,0);
+  const active=apps.filter(isActive);
+  const qs=quarterStart();
+  const joinedQ=apps.filter(a=>a.stage==='Joined'&&new Date(stageDate(a,'Joined')||a.updatedAt)>=qs);
+  const target=+S.config.quarterTarget||60;
+  // offer → join
+  const offered=apps.filter(a=>reached(a,'Offered'));
+  const oJoined=offered.filter(a=>a.stage==='Joined');
+  const oDropped=offered.filter(a=>a.stage==='Dropped Out'||(a.stage==='Rejected'&&a.rejectReason==='Failed BGV'));
+  const oPending=offered.filter(a=>['Offered','BGV'].includes(a.stage));
+  const decided=oJoined.length+oDropped.length;
+  // time to fill
+  const ttf=apps.filter(a=>a.stage==='Joined').map(a=>{const j=S.jobs[a.jobId];const d=stageDate(a,'Joined');return j&&d?daysBetween(j.openedAt||j.createdAt,d):null}).filter(x=>x!=null&&x>=0);
+  const avgTtf=ttf.length?Math.round(ttf.reduce((s,x)=>s+x,0)/ttf.length):null;
+  const highRisk=apps.filter(a=>{const c=S.candidates[a.candidateId];const r=c&&offerRisk(a,c);return r&&r.level==='High'});
+
+  // stage funnel (current)
+  const stageRows=STAGES.slice(0,6).map(s=>[s,active.filter(a=>a.stage===s).length]);
+  // drop reasons
+  const dr={};oDropped.forEach(a=>{const k=a.dropReason||a.rejectReason||'Not recorded';dr[k]=(dr[k]||0)+1});
+  const dropRows=Object.entries(dr).sort((a,b)=>b[1]-a[1]);
+  // reject reasons
+  const rr={};apps.filter(a=>a.stage==='Rejected').forEach(a=>{const k=a.rejectReason||'Not recorded';rr[k]=(rr[k]||0)+1});
+  const rejRows=Object.entries(rr).sort((a,b)=>b[1]-a[1]);
+
+  // sources
+  const src={};
+  for(const c of cands){const k=sourceLabel(c);src[k]=src[k]||{cands:0,interview:0,offers:0,joins:0,fees:0,consult:c.source==='Consultancy'};src[k].cands++}
+  for(const a of apps){const c=S.candidates[a.candidateId];if(!c)continue;const k=sourceLabel(c);const r=src[k];if(!r)continue;
+    if(reached(a,'Internal Interview')&&!(a.stage==='Rejected'&&stageIdx(lastOpenStage(a))<2))r.interview++;
+    if(reached(a,'Offered'))r.offers++;
+    if(a.stage==='Joined'){r.joins++;if(c.source==='Consultancy'&&a.offer&&a.offer.ctc)r.fees+=a.offer.ctc*(+S.config.commission||8.33)/100}}
+  const srcRows=Object.entries(src).sort((a,b)=>b[1].joins-a[1].joins||b[1].cands-a[1].cands);
+
+  // attention list
+  const attn=open.map(j=>{const ja=jobApps(j.id),dl=daysLeft(j),need=(+j.openings||1)-ja.filter(a=>a.stage==='Joined').length;
+    const late=ja.filter(a=>['Offered','BGV'].includes(a.stage)).length;
+    const issues=[];
+    if(dl!=null&&dl<0&&need>0)issues.push(`target date passed ${-dl} days ago`);
+    else if(dl!=null&&dl<=7&&need>late)issues.push(`${dl} days to target, ${need} still to fill, ${late} at offer/BGV`);
+    if(!ja.filter(isActive).length)issues.push('no active candidates');
+    return {j,issues,dl}}).filter(x=>x.issues.length).sort((a,b)=>(a.dl??999)-(b.dl??999)).slice(0,8);
+
+  // recruiter workload
+  const rec={};
+  for(const j of open){const k=j.recruiter||'Unassigned';rec[k]=rec[k]||{jobs:0,active:0,joins:0};rec[k].jobs++;rec[k].active+=jobApps(j.id).filter(isActive).length}
+  for(const a of joinedQ){const j=S.jobs[a.jobId];const k=(j&&j.recruiter)||'Unassigned';rec[k]=rec[k]||{jobs:0,active:0,joins:0};rec[k].joins++}
+
+  return `<div class="page-h"><div><h1>Dashboard</h1><div class="sub">Quarter: ${quarterLabel()} · updated live</div></div></div>
+  <div class="grid g4">
+    <div class="card stat"><div class="label">Joined this quarter</div><div class="val">${joinedQ.length} <span class="muted" style="font-size:16px;font-weight:400">/ ${target}</span></div><div class="meter"><i style="width:${Math.min(100,joinedQ.length/target*100)}%"></i></div><div class="foot">${Math.max(0,target-joinedQ.length)} to go against the hiring target</div></div>
+    <div class="card stat"><div class="label">Open positions</div><div class="val">${Math.max(0,openings-filledOpen)}</div><div class="foot">across ${plural(open.length,'open requisition')}</div></div>
+    <div class="card stat"><div class="label">Offer → join rate</div><div class="val">${decided?Math.round(oJoined.length/decided*100)+'%':'—'}</div><div class="foot">${oJoined.length} joined · ${oDropped.length} dropped · ${oPending.length} pending${highRisk.length?` · <span style="color:var(--danger)">${highRisk.length} high risk</span>`:''}</div></div>
+    <div class="card stat"><div class="label">Average time to fill</div><div class="val">${avgTtf!=null?avgTtf+' d':'—'}</div><div class="foot">requisition opened → candidate joined (${plural(ttf.length,'hire')})</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3>Candidates in pipeline, by stage</h3>${bars(stageRows,{empty:'No active candidates'})}<div class="small muted" style="margin-top:8px">${active.length} active applications</div></div>
+    <div class="card"><h3>Needs attention</h3>${attn.length?`<ul class="attn" style="margin:0;padding-left:18px">${attn.map(x=>`<li><a href="#job-${x.j.id}">${esc(x.j.title)}</a> <span class="muted">· ${esc(x.j.client||'Bench')}</span><br><span class="small" style="color:var(--danger)">${esc(x.issues.join('; '))}</span></li>`).join('')}</ul>`:'<div class="muted small">All open requisitions are on track.</div>'}</div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3>Why offers don't convert</h3>${bars(dropRows,{empty:'No candidates have dropped after an offer yet'})}<div class="small muted" style="margin-top:8px">${offered.length} offers made in total. Dropped = withdrew after offer, or failed BGV.</div></div>
+    <div class="card"><h3>Rejection reasons</h3>${bars(rejRows,{empty:'No rejections recorded yet'})}</div>
+  </div>
+  <div class="card" style="margin-top:14px;padding:0">
+    <div style="padding:14px 16px 6px"><h3>Which sources work</h3></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Source</th><th class="num">Candidates</th><th class="num">Reached interview</th><th class="num">Offers</th><th class="num">Joined</th><th class="num">Join rate</th><th class="num">Consultancy fees</th><th class="num">Fee per hire</th></tr></thead><tbody>
+    ${srcRows.map(([k,r])=>`<tr><td>${esc(k)}</td><td class="num">${r.cands}</td><td class="num">${r.interview}</td><td class="num">${r.offers}</td><td class="num">${r.joins}</td><td class="num">${pct(r.joins,r.cands)}</td><td class="num">${r.consult&&r.fees?lakh(r.fees):'—'}</td><td class="num">${r.consult&&r.joins?lakh(r.fees/r.joins):'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="empty">No candidates yet</td></tr>'}
+    </tbody></table></div>
+    <div class="small muted" style="padding:8px 16px 12px">Consultancy fees are ${S.config.commission}% of offered annual CTC for candidates who joined.</div>
+  </div>
+  <div class="card" style="margin-top:14px;padding:0">
+    <div style="padding:14px 16px 6px"><h3>Recruiter workload</h3></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Recruiter</th><th class="num">Open requisitions</th><th class="num">Active candidates</th><th class="num">Joined this quarter</th></tr></thead><tbody>
+    ${Object.entries(rec).map(([k,r])=>`<tr><td>${esc(k)}</td><td class="num">${r.jobs}</td><td class="num">${r.active}</td><td class="num">${r.joins}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No open requisitions</td></tr>'}
+    </tbody></table></div>
+  </div>`;
+}
+function lastOpenStage(a){const h=(a.history||[]).filter(x=>STAGES.includes(x.stage));return h.length?h[h.length-1].stage:'Applied'}
+
+/* ---------------- Jobs ---------------- */
+function vJobs(){
+  const f=S.f.jobs;const q=f.q.toLowerCase();
+  const clients=[...new Set(list('jobs').map(j=>j.client).filter(Boolean))].sort();
+  const rows=list('jobs').filter(j=>(!f.status||j.status===f.status)&&(!f.client||j.client===f.client)&&(!q||[j.title,j.client,j.project,(j.skills||[]).join(' '),j.recruiter,j.location].join(' ').toLowerCase().includes(q)))
+    .sort((a,b)=>(a.targetDate||'9')<(b.targetDate||'9')?-1:1);
+  return `<div class="page-h"><div><h1>Job requisitions</h1><div class="sub">${plural(rows.length,'requisition')}</div></div><div class="hspace"></div>${S.canWrite?'<button class="btn primary" data-act="newJob">+ Open requisition</button>':''}</div>
+  <div class="filters">
+    <input type="search" placeholder="Search title, client, skill, recruiter…" data-filter="jobs.q" value="${esc(f.q)}">
+    <select data-filter="jobs.status"><option value="">All statuses</option>${['Open','On hold','Closed'].map(s=>`<option ${f.status===s?'selected':''}>${s}</option>`).join('')}</select>
+    <select data-filter="jobs.client"><option value="">All clients</option>${clients.map(c=>`<option ${f.client===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th>Position</th><th>Client · project</th><th>Location</th><th>Recruiter</th><th class="num">Openings</th><th>Target date</th><th>Pipeline</th><th>Status</th></tr></thead><tbody>
+  ${rows.map(j=>{const ja=jobApps(j.id),dl=daysLeft(j),joined=ja.filter(a=>a.stage==='Joined').length;
+    const counts=STAGES.slice(1,6).map(s=>[s,ja.filter(a=>a.stage===s).length]).filter(x=>x[1]);
+    return `<tr class="click" data-act="go" data-href="#job-${j.id}"><td><b>${esc(j.title)}</b><div class="small muted">${[rangeTxt(j.expMin,j.expMax,v=>v,' yrs',''),rangeTxt(j.ctcMin,j.ctcMax,lakh,'','')].filter(Boolean).join(' · ')}</div></td>
+    <td>${esc(j.client||'—')}<div class="small muted">${j.type==='Bench'?'Bench hiring':esc(j.project||'')}</div></td><td>${esc(j.location||'—')}</td><td>${esc(j.recruiter||'—')}</td>
+    <td class="num">${joined}/${j.openings||1}</td>
+    <td>${fmtShort(j.targetDate)}${j.status==='Open'&&dl!=null?`<div class="small" style="color:${dl<0?'var(--danger)':dl<=7?'var(--warn)':'var(--muted)'}">${dl<0?(-dl)+'d overdue':dl+'d left'}</div>`:''}</td>
+    <td>${counts.length?counts.map(([s,n])=>`<span class="tag" title="${s}">${s.split(' ')[0]} ${n}</span>`).join(''):`<span class="small muted">${ja.filter(a=>a.stage==='Applied').length} applied</span>`}</td>
+    <td>${j.status==='Open'?'<span class="flag green">Open</span>':j.status==='On hold'?'<span class="flag amber">On hold</span>':'<span class="flag grey">Closed</span>'}</td></tr>`}).join('')||'<tr><td colspan="8" class="empty">No requisitions match these filters.</td></tr>'}
+  </tbody></table></div>`;
+}
+
+function vJob(id){
+  const j=S.jobs[id];
+  if(!j) return `<div class="empty">This requisition doesn't exist or was removed. <a href="#jobs">Back to jobs</a></div>`;
+  const ja=jobApps(id),dl=daysLeft(j),w=S.canWrite;
+  const lane=s=>{const items=ja.filter(a=>a.stage===s).sort((a,b)=>(a.updatedAt<b.updatedAt?1:-1));
+    return `<div class="lane"><div class="lane-h"><span>${s}</span><span class="muted">${items.length}</span></div>${items.map(a=>kcard(a,j)).join('')||'<div class="small muted" style="padding:4px">—</div>'}</div>`};
+  const closed=ja.filter(isClosed);
+  return `<div class="small"><a href="#jobs">← All requisitions</a></div>
+  <div class="page-h" style="margin-top:8px"><div><h1>${esc(j.title)}</h1><div class="sub">${[j.client,j.type==='Bench'?'Bench hiring':j.project,j.location].filter(Boolean).map(esc).join(' · ')}</div></div><div class="hspace"></div>
+  <div class="btn-row"><button class="btn" data-act="statusReport" data-id="${id}">Client status update</button>${w?`<button class="btn" data-act="editJob" data-id="${id}">Edit</button><button class="btn primary" data-act="addToJob" data-id="${id}">+ Add candidate</button>`:''}</div></div>
+  <div class="card" style="margin-bottom:14px"><dl class="kv" style="grid-template-columns:repeat(4,auto 1fr)">
+    <dt>Status</dt><dd>${esc(j.status)}</dd><dt>Openings</dt><dd>${ja.filter(a=>a.stage==='Joined').length} of ${j.openings||1} filled</dd>
+    <dt>Target date</dt><dd>${fmtDate(j.targetDate)}${dl!=null&&j.status==='Open'?` <span class="small" style="color:${dl<0?'var(--danger)':dl<=7?'var(--warn)':'var(--muted)'}">(${dl<0?(-dl)+'d overdue':dl+'d left'})</span>`:''}</dd><dt>Experience</dt><dd>${rangeTxt(j.expMin,j.expMax,v=>v,' years')}</dd>
+    <dt>CTC range</dt><dd>${rangeTxt(j.ctcMin,j.ctcMax,lakh)}</dd><dt>Billing rate</dt><dd>${j.billingRate?'$'+esc(j.billingRate)+'/hr':'—'}</dd>
+    <dt>Recruiter</dt><dd>${esc(j.recruiter||'—')}</dd><dt>Hiring manager</dt><dd>${esc(j.hiringManager||'—')}</dd>
+    <dt>Skills</dt><dd style="grid-column:span 7">${(j.skills||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')||'—'}</dd>
+  </dl></div>
+  <div class="kanban">${STAGES.map(lane).join('')}</div>
+  ${closed.length?`<div class="card" style="margin-top:14px"><h3>Rejected and dropped out (${closed.length})</h3><div class="table-wrap" style="border:0"><table><tbody>${closed.map(a=>{const c=S.candidates[a.candidateId]||{};return `<tr class="click" data-act="go" data-href="#cand-${a.candidateId}"><td><b>${esc(c.name||'Unknown')}</b></td><td>${pill(a.stage)}</td><td>${esc(a.rejectReason||a.dropReason||'')}</td><td class="muted small">at ${esc(lastOpenStage(a))} · ${fmtShort(a.updatedAt)}</td></tr>`}).join('')}</tbody></table></div></div>`:''}`;
+}
+function kcard(a,j){
+  const c=S.candidates[a.candidateId];if(!c)return '';
+  const i=stageIdx(a.stage),w=S.canWrite;
+  const ivs=(a.interviews||[]).filter(x=>x.outcome==='Scheduled'&&x.at&&new Date(x.at)>new Date()).sort((x,y)=>x.at<y.at?-1:1);
+  return `<div class="kcard"><a class="nm" href="#cand-${c.id}">${esc(c.name)}</a>
+  <div class="meta">${c.totalExp??'?'} yrs · ${esc(c.currentCompany||'—')}</div>
+  <div class="meta">${lakh(c.currentCtc)} → ${lakh(c.expectedCtc)}</div>
+  <div class="flags">${a.stage!=='Joined'?noticeFlag(c,j):''}${riskFlag(a,c)}${ivs.length?`<span class="flag grey">📅 ${fmtDT(ivs[0].at)}</span>`:''}${a.stage==='BGV'?`<span class="flag ${a.bgv==='Clear'?'green':a.bgv==='Discrepancy'?'red':'grey'}">BGV: ${esc(a.bgv||'Not started')}</span>`:''}</div>
+  ${w&&a.stage!=='Joined'?`<div class="acts"><button class="btn icon sm" title="Move back" aria-label="Move back" data-act="back" data-id="${a.id}" ${i<=0?'disabled':''}>◀</button><button class="btn sm" title="Reject or mark dropped out" data-act="close" data-id="${a.id}">✕</button><button class="btn sm" title="Move to ${esc(STAGES[i+1])}" aria-label="Move to ${esc(STAGES[i+1])}" data-act="fwd" data-id="${a.id}">Next ▶</button></div>`:''}
+  </div>`;
+}
+
+/* ---------------- Candidates ---------------- */
+function vCands(){
+  const f=S.f.cands,q=f.q.toLowerCase().trim(),qp=normPhone(f.q);
+  const skills=splitList(f.skill).map(s=>s.toLowerCase());
+  const rows=list('candidates').filter(c=>{
+    if(q&&!([c.name,c.email,c.currentCompany,c.location].join(' ').toLowerCase().includes(q)||(qp.length>=4&&normPhone(c.phone).includes(qp))))return false;
+    if(skills.length){const cs=(c.skills||[]).map(s=>s.toLowerCase());if(!skills.every(s=>cs.some(x=>x.includes(s))))return false}
+    if(f.source&&c.source!==f.source)return false;
+    if(f.notice!==''&&(c.noticeDays==null||c.noticeDays>+f.notice))return false;
+    const ca=candApps(c.id);
+    if(f.stage&&!ca.some(a=>a.stage===f.stage))return false;
+    if(f.active&&!ca.some(isActive))return false;
+    return true;
+  }).sort((a,b)=>(a.createdAt<b.createdAt?1:-1));
+  return `<div class="page-h"><div><h1>Candidates</h1><div class="sub">${plural(rows.length,'candidate')}</div></div><div class="hspace"></div>${S.canWrite?'<button class="btn primary" data-act="newCand">+ Add candidate</button>':''}</div>
+  <div class="filters">
+    <input type="search" placeholder="Name, phone, email, company…" data-filter="cands.q" value="${esc(f.q)}">
+    <input type="search" placeholder="Skills, e.g. java, kafka" data-filter="cands.skill" value="${esc(f.skill)}" style="min-width:190px">
+    <select data-filter="cands.source"><option value="">All sources</option>${SOURCES.map(s=>`<option ${f.source===s?'selected':''}>${s}</option>`).join('')}</select>
+    <select data-filter="cands.notice"><option value="">Any notice</option>${[0,15,30,45,60,90].map(n=>`<option value="${n}" ${f.notice===String(n)?'selected':''}>${n===0?'Immediate':'≤ '+n+' days'}</option>`).join('')}</select>
+    <select data-filter="cands.stage"><option value="">Any stage</option>${[...STAGES,...CLOSED].map(s=>`<option ${f.stage===s?'selected':''}>${s}</option>`).join('')}</select>
+    <label><input type="checkbox" data-filter="cands.active" ${f.active?'checked':''}> In process only</label>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th>Name</th><th>Current company</th><th class="num">Exp</th><th class="num">Notice</th><th class="num">Current → expected</th><th>Skills</th><th>Source</th><th>Applications</th></tr></thead><tbody>
+  ${rows.slice(0,500).map(c=>{const ca=candApps(c.id);return `<tr class="click" data-act="go" data-href="#cand-${c.id}"><td><b>${esc(c.name)}</b><div class="small muted mono">${esc(c.phone||'')}</div></td><td>${esc(c.currentCompany||'—')}</td><td class="num">${c.totalExp??'—'}</td><td class="num">${c.noticeDays!=null?c.noticeDays+'d':'—'}</td><td class="num">${lakh(c.currentCtc)} → ${lakh(c.expectedCtc)}</td>
+    <td>${(c.skills||[]).slice(0,4).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}${(c.skills||[]).length>4?`<span class="small muted">+${c.skills.length-4}</span>`:''}</td><td class="small">${esc(sourceLabel(c))}</td>
+    <td>${ca.map(a=>{const j=S.jobs[a.jobId];return `<div class="small">${pill(a.stage)} ${esc(j?j.title:'(removed job)')}</div>`}).join('')||'<span class="small muted">—</span>'}</td></tr>`}).join('')||'<tr><td colspan="8" class="empty">No candidates match these filters.</td></tr>'}
+  </tbody></table></div>${rows.length>500?`<div class="small muted" style="margin-top:8px">Showing the 500 most recent — narrow the filters to see others.</div>`:''}`;
+}
+
+function vCand(id){
+  const c=S.candidates[id];
+  if(!c) return `<div class="empty">This candidate doesn't exist or was erased. <a href="#candidates">Back to candidates</a></div>`;
+  const ca=candApps(id).sort((a,b)=>(a.createdAt<b.createdAt?1:-1)),w=S.canWrite;
+  const notes=(c.notes||[]).slice().sort((a,b)=>a.at<b.at?1:-1);
+  return `<div class="small"><a href="#candidates">← All candidates</a></div>
+  <div class="page-h" style="margin-top:8px"><div><h1>${esc(c.name)}</h1><div class="sub">${esc(c.currentCompany||'')}${c.location?' · '+esc(c.location):''}</div></div><div class="hspace"></div>
+  ${w?`<div class="btn-row"><button class="btn" data-act="editCand" data-id="${id}">Edit</button><button class="btn primary" data-act="applyCand" data-id="${id}">+ Add to a job</button></div>`:''}</div>
+  <div class="two">
+    <div>
+      <div class="card">
+        <dl class="kv">
+          <dt>Phone</dt><dd class="mono">${esc(c.phone||'—')}</dd>
+          <dt>Email</dt><dd>${c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:'—'}</dd>
+          <dt>Experience</dt><dd>${c.totalExp??'—'} years</dd>
+          <dt>Current CTC</dt><dd>${lakh(c.currentCtc)}</dd>
+          <dt>Expected CTC</dt><dd>${lakh(c.expectedCtc)}${c.currentCtc&&c.expectedCtc?` <span class="small muted">(+${Math.round((c.expectedCtc/c.currentCtc-1)*100)}%)</span>`:''}</dd>
+          <dt>Notice</dt><dd>${c.noticeDays!=null?c.noticeDays+' days to join':'—'}${c.servingNotice?' <span class="flag grey">serving notice</span>':''}</dd>
+          <dt>Source</dt><dd>${esc(sourceLabel(c))}</dd>
+          <dt>Skills</dt><dd>${(c.skills||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')||'—'}</dd>
+          <dt>Resume</dt><dd>${c.resumeLink?`<a href="${esc(safeUrl(c.resumeLink))}" target="_blank" rel="noopener">Open resume ↗</a>`:'—'}</dd>
+          <dt>Consent</dt><dd>${c.consent?`Given ${fmtDate(c.consentAt)}`:'<span class="flag amber">Not recorded</span>'}</dd>
+          <dt>Added</dt><dd>${fmtDate(c.createdAt)}${c.createdBy?' by '+esc(nameOf(c.createdBy)):''}</dd>
+        </dl>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>Notes</h3>
+        ${w?`<form data-form="note" data-id="${id}"><textarea class="note-in" name="text" placeholder="Add a note — call summary, client feedback, availability…" required></textarea><div class="btn-row" style="justify-content:flex-end;margin-top:6px"><button class="btn primary sm">Add note</button></div></form>`:''}
+        ${notes.map(n=>`<div class="note"><div class="by">${esc(n.by?nameOf(n.by):'Imported')} · ${fmtDT(n.at)}</div><div class="tx">${esc(n.text)}</div></div>`).join('')||'<div class="small muted" style="margin-top:6px">No notes yet.</div>'}
+      </div>
+      ${w?`<div style="margin-top:14px"><button class="btn danger sm" data-act="eraseCand" data-id="${id}">Erase candidate data</button><div class="small muted" style="margin-top:4px">Permanently deletes this record, notes and applications (DPDP erasure request).</div></div>`:''}
+    </div>
+    <div>${ca.map(a=>appBlock(a,c)).join('')||`<div class="card empty">Not added to any job yet.${w?` <a href="#" data-act="applyCand" data-id="${id}">Add to a job</a>`:''}</div>`}</div>
+  </div>`;
+}
+function rangeTxt(a,b,f,suf='',none='—'){if(a==null&&b==null)return none;if(a!=null&&b!=null)return f(a)+'–'+f(b)+suf;return (a!=null?'from '+f(a):'up to '+f(b))+suf}
+function safeUrl(u){return /^https?:\/\//i.test(u)?u:'#'}
+function appBlock(a,c){
+  const j=S.jobs[a.jobId]||{title:'(removed requisition)'};const w=S.canWrite;
+  const i=stageIdx(a.stage),closed=isClosed(a),cur=closed?stageIdx(lastOpenStage(a)):i;
+  const ivs=(a.interviews||[]).map((x,k)=>({...x,k})).sort((x,y)=>(x.at||'')<(y.at||'')?-1:1);
+  const o=a.offer;const risk=offerRisk(a,c);
+  return `<div class="card" style="margin-bottom:14px">
+    <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px"><a href="#job-${a.jobId}"><b>${esc(j.title)}</b></a><div class="small muted">${esc(j.client||'Bench')} · recruiter ${esc(j.recruiter||'unassigned')}</div></div>
+      <div class="btn-row">${pill(a.stage)}${a.stage!=='Joined'&&!closed?noticeFlag(c,j):''}${riskFlag(a,c)}</div>
+    </div>
+    <div class="stepper ${closed?'closed':''}">${STAGES.map((s,k)=>`<div class="s ${k<cur?'done':k===cur?'cur':''}" title="${s}${stageDate(a,s)?' · '+fmtDate(stageDate(a,s)):''}">${s}</div>`).join('')}</div>
+    ${closed?`<div class="alert ${a.stage==='Rejected'?'red':'amber'}" style="margin-bottom:8px"><b>${esc(a.stage)}</b> at ${esc(lastOpenStage(a))} — ${esc(a.rejectReason||a.dropReason||'no reason recorded')}</div>`:''}
+    ${w?`<div class="btn-row">
+      ${closed?`<button class="btn sm" data-act="reopen" data-id="${a.id}">Reopen at ${esc(lastOpenStage(a))}</button>`:`
+      <button class="btn sm" data-act="back" data-id="${a.id}" ${i<=0?'disabled':''}>◀ Back</button>
+      ${a.stage!=='Joined'?`<button class="btn primary sm" data-act="fwd" data-id="${a.id}">Move to ${esc(STAGES[i+1])} ▶</button>`:''}
+      ${a.stage!=='Joined'?`<button class="btn danger sm" data-act="close" data-id="${a.id}">Reject / dropped out</button>`:''}`}
+      <span class="hspace"></span>
+      <button class="btn sm" data-act="interview" data-id="${a.id}">+ Interview</button>
+      ${reached(a,'Client Round')?`<button class="btn sm" data-act="offer" data-id="${a.id}">${o?'Edit offer':'+ Offer'}</button>`:''}
+    </div>`:''}
+    ${['BGV','Joined'].includes(a.stage)||a.bgv?`<div class="section"><div class="section-h"><h3 style="margin:0">Background verification</h3></div>
+      ${w?`<select data-act-change="bgv" data-id="${a.id}" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px">${BGV_STATUS.map(s=>`<option ${((a.bgv||'Not started')===s)?'selected':''}>${s}</option>`).join('')}</select>`:esc(a.bgv||'Not started')}
+      <span class="small muted" style="margin-left:8px">Must be <b>Clear</b> before the candidate can be marked Joined.</span></div>`:''}
+    ${o?`<div class="section"><div class="section-h"><h3 style="margin:0">Offer</h3></div>
+      <dl class="kv" style="grid-template-columns:repeat(2,auto 1fr)"><dt>Offered CTC</dt><dd>${lakh(o.ctc)}${c.currentCtc&&o.ctc?` <span class="small muted">(+${Math.round((o.ctc/c.currentCtc-1)*100)}% hike)</span>`:''}</dd><dt>Joining date</dt><dd>${fmtDate(o.joiningDate)}</dd>
+      <dt>Other offers</dt><dd>${o.otherOffers??'—'}</dd><dt>Counter-offer risk</dt><dd>${esc(o.counterOffer||'Unknown')}</dd>
+      ${o.notes?`<dt>Notes</dt><dd style="grid-column:span 3">${esc(o.notes)}</dd>`:''}</dl>
+      ${risk&&risk.reasons.length?`<div class="small" style="margin-top:6px;color:var(--ink-2)">Risk signals: ${esc(risk.reasons.join(' · '))}</div>`:''}</div>`:''}
+    <div class="section"><div class="section-h"><h3 style="margin:0">Interviews</h3></div>
+      ${ivs.length?`<table><thead><tr><th>Round</th><th>When</th><th>Panel</th><th>Outcome</th><th></th></tr></thead><tbody>${ivs.map(x=>`<tr><td>${esc(x.round)}<div class="small muted">${esc(x.mode||'')}</div></td><td>${fmtDT(x.at)}</td><td>${esc(x.panel||'—')}</td><td>${esc(x.outcome||'')}${x.feedback?`<div class="small muted">${esc(x.feedback)}</div>`:''}</td><td>${w?`<button class="btn sm" data-act="interview" data-id="${a.id}" data-k="${x.k}">Edit</button>`:''}</td></tr>`).join('')}</tbody></table>`:'<div class="small muted">None scheduled.</div>'}
+    </div>
+    <div class="section"><details><summary>Stage history (${(a.history||[]).length})</summary><ol class="hist">${(a.history||[]).map(h=>`<li>${esc(h.stage)} · ${fmtDT(h.at)} · ${esc(h.by?nameOf(h.by):'imported')}${h.reason?' — '+esc(h.reason):''}${h.note?' — '+esc(h.note):''}</li>`).join('')}</ol></details></div>
+  </div>`;
+}
+
+/* ---------------- Settings ---------------- */
+function vSettings(){
+  const cfg=S.config,w=S.canWrite;
+  const cutoff=new Date(Date.now()-(+cfg.retentionMonths||24)*30.44*dayMs).toISOString();
+  const stale=list('candidates').filter(c=>!candApps(c.id).some(a=>a.stage==='Joined'||isActive(a))&&lastActivity(c)<cutoff);
+  const demo=list('jobs').some(j=>j.demo)||list('candidates').some(c=>c.demo);
+  return `<div class="page-h"><div><h1>Settings</h1><div class="sub">Shared by everyone using this ATS.</div></div></div>
+  <div class="grid g2">
+  <form class="card" data-form="config">
+    <h3>Team and sources</h3>
+    <div class="form">
+      <div class="field full"><label>Recruiters</label><textarea name="team" ${w?'':'disabled'}>${esc((cfg.team||[]).join('\n'))}</textarea><div class="hint">One name per line. Used to assign requisitions.</div></div>
+      <div class="field full"><label>Hiring managers</label><textarea name="managers" ${w?'':'disabled'}>${esc((cfg.managers||[]).join('\n'))}</textarea><div class="hint">One per line. Offered as suggestions on requisitions.</div></div>
+      <div class="field full"><label>Staffing consultancies</label><textarea name="consultancies" ${w?'':'disabled'}>${esc((cfg.consultancies||[]).join('\n'))}</textarea></div>
+      <div class="field"><label>Consultancy commission (% of annual CTC)</label><input name="commission" type="number" step="0.01" value="${esc(cfg.commission)}" ${w?'':'disabled'}></div>
+      <div class="field"><label>Hiring target this quarter</label><input name="quarterTarget" type="number" value="${esc(cfg.quarterTarget)}" ${w?'':'disabled'}></div>
+      <div class="field"><label>Keep candidate data for (months)</label><input name="retentionMonths" type="number" value="${esc(cfg.retentionMonths)}" ${w?'':'disabled'}><div class="hint">After this long with no activity, candidates who didn't join are listed for erasure.</div></div>
+    </div>
+    ${w?'<div class="btn-row" style="margin-top:14px"><button class="btn primary">Save settings</button></div>':''}
+  </form>
+  <div>
+    <div class="card">
+      <h3>Data retention (DPDP Act)</h3>
+      <p class="small" style="margin-top:0">Candidate data is kept only as long as it's needed for recruitment. ${plural(stale.length,'candidate')} ${stale.length===1?'has':'have'} had no activity for more than ${cfg.retentionMonths} months and ${stale.length===1?'is':'are'} not in process or hired.</p>
+      ${stale.length?`<div class="pick-list" style="max-height:200px">${stale.map(c=>`<div class="pick" data-act="go" data-href="#cand-${c.id}"><span>${esc(c.name)}</span><span class="small muted">last activity ${fmtDate(lastActivity(c))}</span></div>`).join('')}</div>
+      ${w?`<div class="btn-row" style="margin-top:10px"><button class="btn danger" data-act="purgeStale">Erase all ${stale.length}</button></div>`:''}`:''}
+      <p class="small muted" style="margin-bottom:0">To act on an individual's erasure request, open their record and use “Erase candidate data”.</p>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Access</h3>
+      <p class="small" style="margin:0">Share this page from its menu on claude.ai. Give <b>recruiters</b> Contributor access so they can add and move candidates. Give <b>hiring managers</b> Viewer access to review pipelines read-only, or Contributor if they should add notes and interview feedback.</p>
+    </div>
+    ${w&&demo?`<div class="card" style="margin-top:14px"><h3>Sample data</h3><p class="small" style="margin-top:0">Sample requisitions and candidates are loaded.</p><button class="btn danger" data-act="clearSample">Remove sample data</button></div>`:''}
+    ${w&&!demo&&!list('jobs').length?`<div class="card" style="margin-top:14px"><h3>Sample data</h3><button class="btn" data-act="loadSample">Load sample data</button></div>`:''}
+  </div></div>`;
+}
+
+/* ============================================================
+   Modals
+   ============================================================ */
+function openModal(title,body,{wide}={}){
+  $('#modal-root').innerHTML=`<div class="overlay" data-overlay><div class="modal ${wide?'wide':''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="mh"><h2>${esc(title)}</h2><button class="x" data-act="closeModal" aria-label="Close">×</button></div>${body}</div></div>`;
+  const f=$('#modal-root input:not([type=hidden]):not([type=checkbox]),#modal-root select,#modal-root textarea');if(f)setTimeout(()=>f.focus(),20);
+}
+function closeModal(){$('#modal-root').innerHTML=''}
+function field(label,html,{full,hint}={}){return `<div class="field ${full?'full':''}"><label>${label}</label>${html}${hint?`<div class="hint">${hint}</div>`:''}</div>`}
+const inp=(name,val,attrs='')=>`<input name="${name}" value="${esc(val??'')}" ${attrs}>`;
+const sel=(name,opts,val,attrs='')=>`<select name="${name}" ${attrs}>${opts.map(o=>{const [v,l]=Array.isArray(o)?o:[o,o];return `<option value="${esc(v)}" ${String(val??'')===String(v)?'selected':''}>${esc(l)}</option>`}).join('')}</select>`;
+const foot=(label='Save',extra='')=>`<div class="mf">${extra}<button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn primary">${label}</button></div>`;
+
+function jobForm(j){
+  j=j||{status:'Open',type:'Project',openings:1,location:'Pune'};
+  const clients=[...new Set(list('jobs').map(x=>x.client).filter(Boolean))];
+  openModal(j.id?'Edit requisition':'Open a job requisition',`<form data-form="job" data-id="${j.id||''}"><div class="mb"><div class="form">
+    ${field('Job title *',inp('title',j.title,'required placeholder="e.g. Senior Java Developer"'),{full:true})}
+    ${field('Hiring for',sel('type',[['Project','Client project'],['Bench','Bench']],j.type))}
+    ${field('Client',inp('client',j.client,'list="dl-clients" placeholder="e.g. Northwind Bank (US)"')+`<datalist id="dl-clients">${clients.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>`)}
+    ${field('Project',inp('project',j.project))}
+    ${field('Billing rate (USD/hr)',inp('billingRate',j.billingRate,'type="number" step="0.5" min="0"'))}
+    ${field('Skills required',inp('skills',(j.skills||[]).join(', '),'placeholder="Java, Spring Boot, Kafka"'),{full:true,hint:'Comma-separated'})}
+    ${field('Experience from (yrs)',inp('expMin',j.expMin,'type="number" step="0.5" min="0"'))}
+    ${field('Experience to (yrs)',inp('expMax',j.expMax,'type="number" step="0.5" min="0"'))}
+    ${field('CTC from (₹ lakh/yr)',inp('ctcMin',j.ctcMin,'type="number" step="0.1" min="0"'))}
+    ${field('CTC to (₹ lakh/yr)',inp('ctcMax',j.ctcMax,'type="number" step="0.1" min="0"'))}
+    ${field('Location',sel('location',['Pune','Bangalore','Goa','Remote'],j.location))}
+    ${field('Openings',inp('openings',j.openings,'type="number" min="1"'))}
+    ${field('Target closure date',inp('targetDate',j.targetDate,'type="date"'))}
+    ${field('Status',sel('status',['Open','On hold','Closed'],j.status))}
+    ${field('Recruiter',sel('recruiter',[['','Unassigned'],...(S.config.team||[])],j.recruiter))}
+    ${field('Hiring manager',inp('hiringManager',j.hiringManager,'list="dl-mgr"')+`<datalist id="dl-mgr">${(S.config.managers||[]).map(c=>`<option value="${esc(c)}">`).join('')}</datalist>`)}
+  </div></div>${foot(j.id?'Save':'Open requisition',j.id?`<button type="button" class="btn danger" style="margin-right:auto" data-act="deleteJob" data-id="${j.id}">Delete</button>`:'')}</form>`,{wide:true});
+}
+
+function candForm(c,{jobId}={}){
+  c=c||{source:'Naukri'};
+  openModal(c.id?'Edit candidate':'Add candidate',`<form data-form="cand" data-id="${c.id||''}" data-job="${jobId||''}"><div class="mb">
+  <div id="dupbox"></div>
+  <div class="form">
+    ${field('Full name *',inp('name',c.name,'required'))}
+    ${field('Phone *',inp('phone',c.phone,'required inputmode="tel" placeholder="+91 98xxxxxxxx"'))}
+    ${field('Email',inp('email',c.email,'type="email"'))}
+    ${field('Current location',inp('location',c.location))}
+    ${field('Current company',inp('currentCompany',c.currentCompany))}
+    ${field('Total experience (yrs)',inp('totalExp',c.totalExp,'type="number" step="0.1" min="0"'))}
+    ${field('Current CTC (₹ lakh/yr)',inp('currentCtc',c.currentCtc,'type="number" step="0.1" min="0"'))}
+    ${field('Expected CTC (₹ lakh/yr)',inp('expectedCtc',c.expectedCtc,'type="number" step="0.1" min="0"'))}
+    ${field('Days until they can join',inp('noticeDays',c.noticeDays,'type="number" min="0"'),{hint:'Notice period remaining; 0 = immediate'})}
+    <div class="field" style="display:flex;align-items:flex-end"><label class="check"><input type="checkbox" name="servingNotice" ${c.servingNotice?'checked':''}> Already serving notice</label></div>
+    ${field('Skills',inp('skills',(c.skills||[]).join(', '),'placeholder="Java, Spring Boot, AWS"'),{full:true,hint:'Comma-separated — used for skill search'})}
+    ${field('Source',sel('source',SOURCES,c.source,'data-src'))}
+    <div class="field" data-srcdetail>${srcDetail(c.source,c.sourceDetail)}</div>
+    ${field('Resume link',inp('resumeLink',c.resumeLink,'type="url" placeholder="https:// (Drive, SharePoint, Naukri)"'),{full:true})}
+    <div class="field full"><label class="check"><input type="checkbox" name="consent" ${c.consent?'checked':''}> Candidate has consented to Meridian processing their data for recruitment (DPDP Act)</label></div>
+  </div><div class="err" id="form-err"></div></div>${foot(c.id?'Save':'Add candidate')}</form>`,{wide:true});
+  if(c.id) checkDup($('form[data-form=cand]'));
+}
+function srcDetail(src,val){
+  if(src==='Consultancy') return `<label>Consultancy</label>${sel('sourceDetail',(S.config.consultancies||[]).length?S.config.consultancies:['(add in Settings)'],val)}`;
+  if(src==='Employee Referral') return `<label>Referred by (employee)</label>${inp('sourceDetail',val)}`;
+  return `<label>Source detail</label>${inp('sourceDetail',val,'placeholder="optional"')}`;
+}
+function findDups(form){
+  const id=form.dataset.id;const p=normPhone(form.phone.value);const e=form.email.value.trim().toLowerCase();
+  return list('candidates').filter(c=>c.id!==id&&((p.length===10&&normPhone(c.phone)===p)||(e&&(c.email||'').toLowerCase()===e)));
+}
+function checkDup(form){
+  const d=findDups(form),box=$('#dupbox');if(!box)return;
+  if(!d.length){box.innerHTML='';return}
+  box.innerHTML=`<div class="alert red" style="margin-bottom:14px"><b>This candidate may already be in the system.</b><ul>${d.map(c=>{const act=candApps(c.id).filter(isActive);
+    return `<li><a href="#cand-${c.id}" data-act="go" data-href="#cand-${c.id}">${esc(c.name)}</a> · ${esc(c.phone)}${c.email?' · '+esc(c.email):''}${act.length?`<br><b>In process:</b> ${act.map(a=>{const j=S.jobs[a.jobId]||{};return `${esc(j.title||'?')} (${esc(a.stage)}, recruiter ${esc(j.recruiter||'unassigned')})`}).join('; ')}`:''}</li>`}).join('')}</ul>
+    <label class="check" style="margin-top:8px"><input type="checkbox" name="confirmDup"> This is a different person — save anyway</label></div>`;
+}
+
+function applyForm(cid){
+  const c=S.candidates[cid];const mine=new Set(candApps(cid).map(a=>a.jobId));
+  const open=list('jobs').filter(j=>j.status==='Open'&&!mine.has(j.id));
+  const act=candApps(cid).filter(isActive);
+  openModal('Add '+c.name+' to a job',`<div class="mb">
+    ${act.length?`<div class="alert amber" style="margin-bottom:10px"><b>Already in process</b> for ${act.map(a=>{const j=S.jobs[a.jobId]||{};return `${esc(j.title)} (${esc(a.stage)}, recruiter ${esc(j.recruiter||'unassigned')})`}).join('; ')}. Coordinate with that recruiter before contacting the candidate.</div>`:''}
+    ${open.length?`<div class="pick-list">${open.map(j=>`<div class="pick" data-act="doApply" data-c="${cid}" data-j="${j.id}"><span><b>${esc(j.title)}</b><br><span class="small muted">${esc(j.client||'Bench')} · ${esc(j.location||'')}</span></span><span>${noticeFlag(c,j)}</span></div>`).join('')}</div>`:'<div class="muted">No other open requisitions.</div>'}
+  </div><div class="mf"><button class="btn" data-act="closeModal">Close</button></div>`);
+}
+function addToJobForm(jid){
+  const j=S.jobs[jid];
+  openModal('Add a candidate to '+j.title,`<div class="mb">
+    <div class="btn-row" style="margin-bottom:10px"><button class="btn primary" data-act="newCand" data-job="${jid}">+ New candidate</button><span class="muted small">or pick someone already in the system:</span></div>
+    <div class="filters" style="margin:0"><input type="search" id="pickq" placeholder="Search name, phone, skill…" style="width:100%" data-pick="${jid}"></div>
+    <div class="pick-list" id="picklist">${pickRows(jid,'')}</div>
+  </div><div class="mf"><button class="btn" data-act="closeModal">Close</button></div>`);
+}
+function pickRows(jid,q){
+  const j=S.jobs[jid];q=q.toLowerCase();const qp=normPhone(q);const inJob=new Set(jobApps(jid).map(a=>a.candidateId));
+  const r=list('candidates').filter(c=>!inJob.has(c.id)&&(!q||[c.name,c.email,(c.skills||[]).join(' ')].join(' ').toLowerCase().includes(q)||(qp.length>=4&&normPhone(c.phone).includes(qp)))).slice(0,50);
+  return r.map(c=>{const act=candApps(c.id).filter(isActive);return `<div class="pick" data-act="doApply" data-c="${c.id}" data-j="${jid}"><span><b>${esc(c.name)}</b> <span class="small muted">${c.totalExp??'?'} yrs · ${(c.skills||[]).slice(0,3).map(esc).join(', ')}</span>${act.length?`<br><span class="small" style="color:var(--warn)">In process for ${act.length} other job${act.length>1?'s':''}</span>`:''}</span><span>${noticeFlag(c,j)}</span></div>`}).join('')||'<div class="pick muted">No matching candidates</div>';
+}
+function reasonForm(aid){
+  const a=S.applications[aid];const c=S.candidates[a.candidateId]||{};
+  openModal('Close application — '+(c.name||''),`<form data-form="close" data-id="${aid}"><div class="mb"><div class="form">
+    ${field('Outcome',sel('kind',[['Rejected','Rejected by us or the client'],['Dropped Out','Candidate dropped out']],'Rejected','data-kind'),{full:true})}
+    <div class="field full" data-reasons>${reasonSel('Rejected')}</div>
+    ${field('Comment',`<textarea name="note" placeholder="Optional detail"></textarea>`,{full:true})}
+  </div></div>${foot('Close application')}</form>`);
+}
+function reasonSel(kind){return `<label>Reason *</label>${sel('reason',kind==='Rejected'?REJECT_REASONS:DROP_REASONS,'','required')}`}
+function offerForm(aid,thenMove){
+  const a=S.applications[aid];const o=a.offer||{};const c=S.candidates[a.candidateId]||{};const j=S.jobs[a.jobId]||{};
+  openModal((a.offer?'Edit offer':'Offer details')+' — '+(c.name||''),`<form data-form="offer" data-id="${aid}" data-move="${thenMove?1:''}"><div class="mb">
+  ${thenMove?'<div class="alert blue" style="margin-bottom:12px">Record the offer to move this candidate to <b>Offered</b>. Moving past Client Round records the client\'s approval.</div>':''}
+  <div class="form">
+    ${field('Offered CTC (₹ lakh/yr) *',inp('ctc',o.ctc,'type="number" step="0.1" min="0" required'),{hint:`Expected ${lakh(c.expectedCtc)} · band ${lakh(j.ctcMin)}–${lakh(j.ctcMax)}`})}
+    ${field('Joining date *',inp('joiningDate',o.joiningDate,'type="date" required'))}
+    ${field('Other offers in hand',inp('otherOffers',o.otherOffers??0,'type="number" min="0"'))}
+    ${field('Counter-offer from current employer likely?',sel('counterOffer',['Unknown','Yes','No'],o.counterOffer||'Unknown'))}
+    ${field('Notes',`<textarea name="notes">${esc(o.notes||'')}</textarea>`,{full:true})}
+  </div></div>${foot(thenMove?'Save and move to Offered':'Save offer')}</form>`);
+}
+function interviewForm(aid,k){
+  const a=S.applications[aid];const x=k!=null&&k!==''?(a.interviews||[])[+k]:null;const iv=x||{round:a.stage==='Client Round'?'Client round':'Internal L1 (technical)',outcome:'Scheduled',mode:'Video'};
+  openModal(x?'Edit interview':'Schedule interview',`<form data-form="interview" data-id="${aid}" data-k="${x?k:''}"><div class="mb"><div class="form">
+    ${field('Round',sel('round',INTERVIEW_ROUNDS,iv.round))}
+    ${field('Mode',sel('mode',['Video','In person','Phone'],iv.mode))}
+    ${field('Date and time *',inp('at',iv.at?toLocalInput(iv.at):'','type="datetime-local" required'))}
+    ${field('Outcome',sel('outcome',INTERVIEW_OUTCOMES,iv.outcome))}
+    ${field('Panel',inp('panel',iv.panel,'placeholder="Names of interviewers"'),{full:true})}
+    ${field('Feedback',`<textarea name="feedback">${esc(iv.feedback||'')}</textarea>`,{full:true})}
+  </div></div>${foot('Save',x?`<button type="button" class="btn danger" style="margin-right:auto" data-act="delInterview" data-id="${aid}" data-k="${k}">Remove</button>`:'')}</form>`);
+}
+function toLocalInput(iso){const d=new Date(iso);const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`}
+function confirmBox(title,msg,label,onYes){
+  S._confirm=onYes;
+  openModal(title,`<div class="mb"><p style="margin:0">${msg}</p></div><div class="mf"><button class="btn" data-act="closeModal">Cancel</button><button class="btn primary" style="background:var(--danger);border-color:var(--danger)" data-act="confirmYes">${esc(label)}</button></div>`);
+}
+function statusText(jid){
+  const j=S.jobs[jid],ja=jobApps(jid);
+  const L=[];
+  L.push(`${j.title} — ${j.client||'Bench'}${j.project?' / '+j.project:''}`);
+  L.push(`Status as of ${fmtDate(nowISO())}: ${ja.filter(a=>a.stage==='Joined').length} of ${j.openings||1} positions filled. Target date ${fmtDate(j.targetDate)}.`);
+  L.push('');
+  for(const s of ['Joined','BGV','Offered','Client Round','Internal Interview','Screened']){
+    const xs=ja.filter(a=>a.stage===s);if(!xs.length)continue;
+    L.push(`${s==='BGV'?'Background verification':s} (${xs.length}):`);
+    for(const a of xs){const c=S.candidates[a.candidateId]||{};let d='';
+      if(s==='Client Round'){const iv=(a.interviews||[]).filter(x=>x.round==='Client round').sort((p,q)=>(p.at||'')<(q.at||'')?1:-1)[0];d=iv?` — client interview ${fmtDT(iv.at)}${iv.outcome&&iv.outcome!=='Scheduled'?' ('+iv.outcome+')':''}`:' — awaiting client interview slot'}
+      if(['Offered','BGV'].includes(s)&&a.offer)d=` — joining ${fmtDate(a.offer.joiningDate)}`;
+      if(s==='Joined')d=` — joined ${fmtDate(stageDate(a,'Joined'))}`;
+      if(['Screened','Internal Interview'].includes(s))d=` — ${c.totalExp??'?'} yrs, available in ${c.noticeDays??'?'} days`;
+      L.push(`  • ${c.name||'Candidate'}${d}`)}
+  }
+  const early=ja.filter(a=>a.stage==='Applied').length;if(early)L.push(`\n${early} more profile${early>1?'s':''} under initial review.`);
+  return L.join('\n');
+}
+
+/* ============================================================
+   Actions
+   ============================================================ */
+async function createApp(cid,jid){
+  const a={id:uid('a'),candidateId:cid,jobId:jid,stage:'Applied',history:[{stage:'Applied',at:nowISO(),by:S.me||null}],interviews:[],createdAt:nowISO()};
+  await put('applications',a);return a;
+}
+async function moveApp(a,to,extra={}){
+  const n={...a,stage:to,history:[...(a.history||[]),{stage:to,at:nowISO(),by:S.me||null,...extra}]};
+  if(to==='Rejected'){n.rejectReason=extra.reason;delete n.dropReason}
+  else if(to==='Dropped Out'){n.dropReason=extra.reason;delete n.rejectReason}
+  else{delete n.rejectReason;delete n.dropReason}
+  if(to==='BGV'&&!n.bgv)n.bgv='Initiated';
+  await put('applications',n);
+  const c=S.candidates[a.candidateId]||{};
+  toast(`${c.name||'Candidate'} → ${to}`);
+  if(to==='Joined'){const j=S.jobs[a.jobId];if(j&&j.status==='Open'&&jobApps(j.id).filter(x=>x.stage==='Joined').length>=(+j.openings||1))toast('All openings for this requisition are filled — consider closing it.')}
+}
+function fwd(aid){
+  const a=S.applications[aid];const i=stageIdx(a.stage);const to=STAGES[i+1];if(!to)return;
+  if(to==='Offered'&&!a.offer)return offerForm(aid,true);
+  if(to==='Joined'&&a.bgv!=='Clear')return toast('Mark background verification as Clear before marking Joined.',true);
+  moveApp(a,to,a.stage==='Client Round'?{note:'Client approved'}:{});
+}
+
+const ACT={
+  go:(d)=>{closeModal();location.hash=d.href.slice(1)},
+  closeModal:()=>closeModal(),
+  newJob:()=>jobForm(),
+  editJob:d=>jobForm(S.jobs[d.id]),
+  newCand:d=>candForm(null,{jobId:d.job}),
+  editCand:d=>candForm(S.candidates[d.id]),
+  applyCand:d=>applyForm(d.id),
+  addToJob:d=>addToJobForm(d.id),
+  doApply:async d=>{
+    if(candApps(d.c).some(a=>a.jobId===d.j))return toast('Already added to this job.',true);
+    closeModal();await createApp(d.c,d.j);toast('Added to '+(S.jobs[d.j]||{}).title);
+  },
+  fwd:d=>fwd(d.id),
+  back:d=>{const a=S.applications[d.id];const i=stageIdx(a.stage);if(i>0)moveApp(a,STAGES[i-1],{note:'Moved back'})},
+  close:d=>reasonForm(d.id),
+  reopen:d=>{const a=S.applications[d.id];moveApp(a,lastOpenStage(a),{note:'Reopened'})},
+  offer:d=>offerForm(d.id,false),
+  interview:d=>interviewForm(d.id,d.k),
+  delInterview:async d=>{const a=S.applications[d.id];const iv=[...(a.interviews||[])];iv.splice(+d.k,1);closeModal();await put('applications',{...a,interviews:iv})},
+  statusReport:d=>{const t=statusText(d.id);openModal('Client status update',`<div class="mb"><textarea id="stxt" style="width:100%;min-height:300px;border:1px solid var(--line);border-radius:6px;padding:10px;font-family:'IBM Plex Mono',monospace;font-size:12.5px">${esc(t)}</textarea><div class="small muted" style="margin-top:6px">Ready to paste into an email to the client. Edit freely — nothing here is saved.</div></div><div class="mf"><button class="btn" data-act="closeModal">Close</button><button class="btn primary" data-act="copyStatus">Copy text</button></div>`,{wide:true})},
+  copyStatus:async()=>{const t=$('#stxt');try{await navigator.clipboard.writeText(t.value);toast('Copied')}catch(_){t.select();toast('Press Ctrl+C / ⌘C to copy the selected text')}},
+  deleteJob:d=>{const n=jobApps(d.id).length;confirmBox('Delete requisition',`Delete this requisition${n?` and its ${plural(n,'application')}`:''}? Candidates stay in the system. To keep the history, set the status to Closed instead.`,'Delete',async()=>{for(const a of jobApps(d.id))await del('applications',a.id,{quiet:true});await del('jobs',d.id);location.hash='jobs'})},
+  eraseCand:d=>{const c=S.candidates[d.id];confirmBox('Erase candidate data',`Permanently erase <b>${esc(c.name)}</b>, their notes and all their applications? This can't be undone.`,'Erase',async()=>{await eraseCandidate(d.id);location.hash='candidates';toast('Candidate data erased')})},
+  purgeStale:()=>{const cfg=S.config;const cutoff=new Date(Date.now()-(+cfg.retentionMonths||24)*30.44*dayMs).toISOString();
+    const stale=list('candidates').filter(c=>!candApps(c.id).some(a=>a.stage==='Joined'||isActive(a))&&lastActivity(c)<cutoff);
+    confirmBox('Erase inactive candidates',`Permanently erase ${plural(stale.length,'candidate')} and their applications?`,'Erase all',async()=>{await runPool(stale.map(c=>()=>eraseCandidate(c.id,true)));scheduleRender();toast('Erased '+plural(stale.length,'candidate'))})},
+  confirmYes:async()=>{const f=S._confirm;S._confirm=null;closeModal();if(f)try{await f()}catch(_){}},
+  loadSample:()=>loadSample(),
+  clearSample:()=>confirmBox('Remove sample data','Remove all sample requisitions, candidates and applications? Records you added yourself are kept.','Remove',clearSample),
+};
+async function eraseCandidate(id,quiet){
+  for(const a of candApps(id))await del('applications',a.id,{quiet:true});
+  await del('candidates',id,{quiet});
+}
+
+const FORMS={
+  job:async(f,fd)=>{
+    const id=f.dataset.id;const old=id?S.jobs[id]:null;
+    const j={...(old||{}),id:id||uid('j'),title:fd.get('title').trim(),type:fd.get('type'),client:fd.get('client').trim(),project:fd.get('project').trim(),billingRate:num(fd.get('billingRate')),
+      skills:splitList(fd.get('skills')),expMin:num(fd.get('expMin')),expMax:num(fd.get('expMax')),ctcMin:num(fd.get('ctcMin')),ctcMax:num(fd.get('ctcMax')),location:fd.get('location'),
+      openings:num(fd.get('openings'))||1,targetDate:fd.get('targetDate')||null,status:fd.get('status'),recruiter:fd.get('recruiter'),hiringManager:fd.get('hiringManager').trim()};
+    if(!old){j.createdAt=nowISO();j.openedAt=j.createdAt;j.createdBy=S.me||null}
+    if(old&&old.status!=='Closed'&&j.status==='Closed')j.closedAt=nowISO();
+    if(old&&old.status==='Closed'&&j.status==='Open')j.openedAt=nowISO();
+    closeModal();await put('jobs',j);if(!old){location.hash='job-'+j.id;toast('Requisition opened')}else toast('Saved');
+  },
+  cand:async(f,fd)=>{
+    const id=f.dataset.id;const old=id?S.candidates[id]:null;
+    if(findDups(f).length&&!(f.confirmDup&&f.confirmDup.checked)){checkDup(f);$('#form-err').textContent='A record with this phone number or email already exists. Open that record, or tick “This is a different person” to save anyway.';$('#dupbox').scrollIntoView({block:'nearest'});return}
+    const consent=fd.get('consent')==='on';
+    const c={...(old||{}),id:id||uid('c'),name:fd.get('name').trim(),phone:fd.get('phone').trim(),email:fd.get('email').trim(),location:fd.get('location').trim(),currentCompany:fd.get('currentCompany').trim(),
+      totalExp:num(fd.get('totalExp')),currentCtc:num(fd.get('currentCtc')),expectedCtc:num(fd.get('expectedCtc')),noticeDays:num(fd.get('noticeDays')),servingNotice:fd.get('servingNotice')==='on',
+      skills:splitList(fd.get('skills')),source:fd.get('source'),sourceDetail:(fd.get('sourceDetail')||'').trim(),resumeLink:fd.get('resumeLink').trim(),consent};
+    if(consent&&!(old&&old.consent))c.consentAt=nowISO();
+    if(!consent)c.consentAt=null;
+    if(!old){c.createdAt=nowISO();c.createdBy=S.me||null;c.notes=[]}
+    closeModal();await put('candidates',c);
+    if(f.dataset.job){await createApp(c.id,f.dataset.job);toast(`${c.name} added to ${(S.jobs[f.dataset.job]||{}).title}`)}
+    else toast(old?'Saved':'Candidate added');
+    if(!old&&!f.dataset.job)location.hash='cand-'+c.id;
+  },
+  note:async(f,fd)=>{
+    const t=fd.get('text').trim();if(!t)return;const c=S.candidates[f.dataset.id];
+    f.reset();await put('candidates',{...c,notes:[...(c.notes||[]),{id:uid('n'),text:t,by:S.me||null,at:nowISO()}]});
+  },
+  close:async(f,fd)=>{const a=S.applications[f.dataset.id];closeModal();await moveApp(a,fd.get('kind'),{reason:fd.get('reason'),note:fd.get('note').trim()||undefined})},
+  offer:async(f,fd)=>{
+    const a=S.applications[f.dataset.id];
+    const offer={ctc:num(fd.get('ctc')),joiningDate:fd.get('joiningDate'),otherOffers:num(fd.get('otherOffers'))||0,counterOffer:fd.get('counterOffer'),notes:fd.get('notes').trim()};
+    closeModal();
+    if(f.dataset.move){await moveApp({...a,offer},'Offered',a.stage==='Client Round'?{note:'Client approved'}:{})}
+    else{await put('applications',{...a,offer});toast('Offer saved')}
+  },
+  interview:async(f,fd)=>{
+    const a=S.applications[f.dataset.id];const iv=[...(a.interviews||[])];
+    const at=fd.get('at');const x={round:fd.get('round'),mode:fd.get('mode'),at:at?new Date(at).toISOString():null,outcome:fd.get('outcome'),panel:fd.get('panel').trim(),feedback:fd.get('feedback').trim()};
+    if(f.dataset.k!=='')iv[+f.dataset.k]=x;else iv.push(x);
+    closeModal();await put('applications',{...a,interviews:iv});toast('Interview saved');
+  },
+  config:async(f,fd)=>{
+    await saveConfig({team:splitList(fd.get('team')),managers:splitList(fd.get('managers')),consultancies:splitList(fd.get('consultancies')),commission:num(fd.get('commission'))??8.33,quarterTarget:num(fd.get('quarterTarget'))||60,retentionMonths:num(fd.get('retentionMonths'))||24});
+    toast('Settings saved');
+  }
+};
+
+/* ============================================================
+   Events
+   ============================================================ */
+document.addEventListener('click',e=>{
+  const ov=e.target.closest('[data-overlay]');
+  if(ov&&e.target===ov){closeModal();return}
+  const t=e.target.closest('[data-act]');if(!t)return;
+  const fn=ACT[t.dataset.act];if(!fn)return;
+  if(t.tagName==='A'||t.dataset.act==='go')e.preventDefault();
+  e.stopPropagation();
+  fn(t.dataset,t,e);
+});
+document.addEventListener('submit',e=>{
+  const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();
+  const fn=FORMS[f.dataset.form];if(fn)Promise.resolve(fn(f,new FormData(f))).catch(()=>{});
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.filter){const [g,k]=t.dataset.filter.split('.');S.f[g][k]=t.type==='checkbox'?t.checked:t.value;scheduleRender();return}
+  if(t.dataset.pick!=null&&t.id==='pickq'){$('#picklist').innerHTML=pickRows(t.dataset.pick,t.value);return}
+  const f=t.closest('form[data-form=cand]');if(f&&(t.name==='phone'||t.name==='email')){clearTimeout(S._dupT);S._dupT=setTimeout(()=>checkDup(f),200)}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.filter&&t.tagName==='SELECT'){const [g,k]=t.dataset.filter.split('.');S.f[g][k]=t.value;scheduleRender();return}
+  if(t.dataset.filter&&t.type==='checkbox'){const [g,k]=t.dataset.filter.split('.');S.f[g][k]=t.checked;scheduleRender();return}
+  if(t.hasAttribute('data-src')){const box=t.closest('form').querySelector('[data-srcdetail]');box.innerHTML=srcDetail(t.value,'');return}
+  if(t.hasAttribute('data-kind')){t.closest('form').querySelector('[data-reasons]').innerHTML=reasonSel(t.value);return}
+  if(t.dataset.actChange==='bgv'){const a=S.applications[t.dataset.id];put('applications',{...a,bgv:t.value}).then(()=>toast('BGV: '+t.value)).catch(()=>{})}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal-root').innerHTML)closeModal()});
+
+function route(){
+  const h=location.hash.slice(1)||'dashboard';
+  let r={view:'dashboard',id:null};
+  if(h.startsWith('job-'))r={view:'job',id:h.slice(4)};
+  else if(h.startsWith('cand-'))r={view:'cand',id:h.slice(5)};
+  else if(['dashboard','jobs','candidates','settings'].includes(h))r={view:h,id:null};
+  S.route=r;S._keepScroll=false;window.scrollTo(0,0);render();
+}
+window.addEventListener('hashchange',route);
+
+function toast(msg,bad){const el=document.createElement('div');el.className='toast'+(bad?' bad':'');el.textContent=msg;$('#toast').appendChild(el);setTimeout(()=>el.remove(),bad?5000:2600)}
+
+/* ============================================================
+   Sample data
+   ============================================================ */
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function buildSample(){
+  const R=rng(42),pick=a=>a[Math.floor(R()*a.length)],rint=(a,b)=>a+Math.floor(R()*(b-a+1));
+  const now=Date.now(),ago=n=>new Date(now-n*dayMs).toISOString(),fut=n=>new Date(now+n*dayMs).toISOString().slice(0,10);
+  const team=(S.config.team&&S.config.team.length)?S.config.team:DEFAULT_CONFIG.team;
+  const cons=(S.config.consultancies&&S.config.consultancies.length)?S.config.consultancies:DEFAULT_CONFIG.consultancies;
+  const J=[
+    ['Senior Java Developer','Northwind Bank (US)','Payments Modernisation','Project',['Java','Spring Boot','Microservices','Kafka'],5,8,14,22,'Pune',12,3,38,40],
+    ['React Frontend Engineer','Harbor Retail (UK)','E-commerce Replatform','Project',['React','TypeScript','Redux','CSS'],3,6,9,16,'Bangalore',20,2,30,25],
+    ['QA Automation Engineer','FreightLine Logistics (US)','Fleet Tracking Platform','Project',['Selenium','Java','REST Assured','CI/CD'],3,6,7,13,'Goa',5,2,26,35],
+    ['DevOps Engineer','Northwind Bank (US)','Cloud Migration','Project',['AWS','Terraform','Kubernetes','Jenkins'],4,8,12,20,'Pune',-3,2,40,50],
+    ['.NET Developer','','','Bench',['C#','.NET Core','SQL Server','Azure'],2,5,6,12,'Pune',30,2,null,15],
+    ['Data Engineer','Harbor Retail (UK)','Customer Analytics','Project',['Python','Spark','Airflow','SQL'],4,7,12,19,'Bangalore',25,1,36,10],
+  ];
+  const jobs=J.map((x,k)=>({id:'jdemo'+k,demo:true,title:x[0],client:x[1],project:x[2],type:x[3],skills:x[4],expMin:x[5],expMax:x[6],ctcMin:x[7],ctcMax:x[8],location:x[9],targetDate:fut(x[10]),openings:x[11],billingRate:x[12],status:'Open',recruiter:team[k%team.length],hiringManager:['Anil Deshpande','Kavita Rao','Sameer Kulkarni'][k%3],createdAt:ago(x[13]),openedAt:ago(x[13]),updatedAt:ago(2)}));
+  const first=['Aarav','Priya','Rohan','Sneha','Vikram','Ananya','Karthik','Neha','Arjun','Pooja','Siddharth','Divya','Rahul','Meera','Aditya','Kavya','Nikhil','Shruti','Varun','Isha','Manish','Riya','Harsh','Tanvi','Omkar','Aditi','Pranav','Swati','Gaurav','Nandini','Akash','Bhavna','Yash','Rutuja','Kunal','Shreya'];
+  const last=['Joshi','Patil','Iyer','Nair','Kulkarni','Sharma','Reddy','Deshmukh','Menon','Gupta','Pawar','Rao','Shetty','Bhat','Kamat','Naik','Pillai','Chavan'];
+  const cos=['Infosys','TCS','Wipro','Persistent Systems','Cognizant','Capgemini','Tech Mahindra','LTIMindtree','Zensar','Accenture','HCLTech','KPIT'];
+  const cands=[],apps=[];
+  // target stage distribution
+  const plan=['Applied','Applied','Applied','Screened','Screened','Internal Interview','Internal Interview','Client Round','Client Round','Offered','Offered','BGV','Joined','Joined','Joined','Rejected','Rejected','Rejected','Dropped Out','Dropped Out'];
+  for(let k=0;k<first.length;k++){
+    const j=jobs[k%jobs.length];
+    const exp=+(j.expMin+R()*(j.expMax-j.expMin+1)).toFixed(1);const cur=+(j.ctcMin*0.75+R()*(j.ctcMax-j.ctcMin)*0.7).toFixed(1);
+    const srcR=R();const source=srcR<.3?'Naukri':srcR<.55?'LinkedIn':srcR<.72?'Employee Referral':srcR<.92?'Consultancy':'Direct';
+    const created=rint(4,Math.max(6,daysBetween(j.createdAt,ago(0))));
+    const c={id:'cdemo'+k,demo:true,name:first[k]+' '+pick(last),phone:'+91 9'+String(rint(100000000,999999999)),email:(first[k]+'.'+k+'@example.com').toLowerCase(),location:pick(['Pune','Bangalore','Mumbai','Hyderabad','Goa','Chennai']),
+      currentCompany:pick(cos),totalExp:exp,currentCtc:cur,expectedCtc:+(cur*(1.2+R()*0.35)).toFixed(1),noticeDays:pick([0,15,30,30,45,60,60,90]),servingNotice:R()<.25,skills:[...j.skills.slice(0,3),pick(['Git','Agile','Docker','Jira','Linux'])],
+      source,sourceDetail:source==='Consultancy'?pick(cons):source==='Employee Referral'?pick(['Mahesh Gokhale','Sunita Pillai','Ravi Menon']):'',consent:true,consentAt:ago(created),createdAt:ago(created),updatedAt:ago(1),
+      notes:R()<.5?[{id:'n'+k,text:pick(['Spoke on phone — keen on Pune location, can negotiate notice to 30 days.','Strong on fundamentals, weaker on system design.','Has an offer from a product company; wants a decision this week.','Prefers hybrid work. Available for interviews after 6 pm.']),by:null,at:ago(Math.max(1,created-2))}]:[]};
+    cands.push(c);
+    const target=plan[k%plan.length];
+    const path=['Applied'];let closedAt=null;
+    if(STAGES.includes(target)){for(let s=1;s<=stageIdx(target);s++)path.push(STAGES[s])}
+    else{const upto=target==='Dropped Out'?pick([4,5,4]):rint(1,3);for(let s=1;s<=upto;s++)path.push(STAGES[s]);closedAt=target}
+    const steps=path.length+(closedAt?1:0);let t=created;const hist=[];const gap=Math.max(1,Math.floor((created-1)/steps));
+    for(const s of path){hist.push({stage:s,at:ago(t),by:null});t=Math.max(1,t-rint(1,gap))}
+    const a={id:'ademo'+k,demo:true,candidateId:c.id,jobId:j.id,stage:closedAt||target,history:hist,interviews:[],createdAt:ago(created),updatedAt:ago(t)};
+    if(closedAt){const reason=closedAt==='Rejected'?pick(['Skills mismatch','Rejected by client','CTC expectation too high','Failed internal interview','Notice period too long']):pick(['Accepted another offer','Counter-offer from current employer','Accepted another offer']);hist.push({stage:closedAt,at:ago(t),by:null,reason});if(closedAt==='Rejected')a.rejectReason=reason;else a.dropReason=reason}
+    if(path.includes('Internal Interview'))a.interviews.push({round:'Internal L1 (technical)',mode:'Video',at:stageDate(a,'Internal Interview'),outcome:path.length>3?'Selected':'Scheduled',panel:pick(['Anil D., Rakesh P.','Kavita R.','Sameer K., Neha G.']),feedback:path.length>3?'Good depth in core skills.':''});
+    if(target==='Client Round')a.interviews.push({round:'Client round',mode:'Video',at:(()=>{const d=new Date(now+rint(1,4)*dayMs);d.setHours(rint(10,17),0,0,0);return d.toISOString()})(),outcome:'Scheduled',panel:j.client+' engineering lead'});
+    if(path.includes('Offered')){const ctc=+(c.expectedCtc*(0.95+R()*0.1)).toFixed(1);a.offer={ctc,joiningDate:target==='Joined'?stageDate(a,'Joined')?.slice(0,10)||fut(0):fut(c.noticeDays||rint(10,40)),otherOffers:R()<.4?rint(1,2):0,counterOffer:pick(['Unknown','Yes','No','No']),notes:''}}
+    if(path.includes('BGV'))a.bgv=target==='Joined'?'Clear':pick(['Initiated','In progress']);
+    if(target==='Joined'){a.history[a.history.length-1].at=ago(rint(2,20));a.offer&&(a.offer.joiningDate=a.history[a.history.length-1].at.slice(0,10))}
+    apps.push(a);
+  }
+  // one candidate in process for two jobs (shows the "already in process" warning)
+  apps.push({id:'ademo-x',demo:true,candidateId:'cdemo3',jobId:'jdemo0',stage:'Screened',history:[{stage:'Applied',at:ago(6),by:null},{stage:'Screened',at:ago(4),by:null}],interviews:[],createdAt:ago(6),updatedAt:ago(4)});
+  return {jobs,cands,apps};
+}
+async function loadSample(){
+  if(!S.canWrite)return;
+  const {jobs,cands,apps}=buildSample();
+  toast('Loading sample data…');
+  const tasks=[...jobs.map(j=>()=>put('jobs',{...j},{quiet:true}).catch(()=>{})),...cands.map(c=>()=>put('candidates',{...c},{quiet:true}).catch(()=>{})),...apps.map(a=>()=>put('applications',{...a},{quiet:true}).catch(()=>{}))];
+  // put() overwrites updatedAt; restore sample timestamps locally for realism
+  await runPool(tasks,5);scheduleRender();toast('Sample data loaded');
+}
+async function clearSample(){
+  const tasks=[...list('applications').filter(a=>a.demo).map(a=>()=>del('applications',a.id,{quiet:true}).catch(()=>{})),...list('candidates').filter(c=>c.demo).map(c=>()=>del('candidates',c.id,{quiet:true}).catch(()=>{})),...list('jobs').filter(j=>j.demo).map(j=>()=>del('jobs',j.id,{quiet:true}).catch(()=>{}))];
+  await runPool(tasks,5);scheduleRender();toast('Sample data removed');
+}
+
+/* ============================================================
+   Boot
+   ============================================================ */
+async function boot(){
+  route();
+  const cl=window.claude;
+  let db=null,user=null;
+  if(cl&&typeof cl.use==='function'){
+    try{[db,user]=await Promise.all([cl.use('db').catch(()=>null),cl.use('user').catch(()=>null)])}catch(_){}
+  }
+  S.user=user;
+  if(user){
+    try{S.me=await user.id()}catch(_){}
+    try{const w=await user.can('data.write');if(w===false)S.canWrite=false}catch(_){}
+  }
+  if(!db){S.mode='memory';render();return}
+  S.db=db;S.mode='live';
+  const cols=['jobs','candidates','applications'];
+  const timer=setTimeout(()=>{if(cols.some(c=>!S.confirmed[c])){S.slow=true;scheduleRender()}},10000);
+  const done=()=>{if(cols.every(c=>S.confirmed[c])){clearTimeout(timer);if(S.slow){S.slow=false}}};
+  for(const col of cols){
+    db.collection(col).onSnapshot(snap=>{
+      const m={};snap.docs.forEach(d=>{m[d.id]={...d.data(),id:d.id}});
+      S[col]=m;if(!snap.metadata.fromCache)S.confirmed[col]=true;done();
+      (S.got=S.got||{})[col]=true;S.gotAll=cols.every(c=>S.got[c]);scheduleRender();
+    },err=>{S.dbError=err&&err.code||'unavailable';clearTimeout(timer);scheduleRender()});
+  }
+  db.doc('config/main').onSnapshot(s=>{if(s.exists)S.config={...DEFAULT_CONFIG,...s.data()};scheduleRender()},()=>{});
+  render();
+}
+boot();
+</script>
+</body>
+</html>

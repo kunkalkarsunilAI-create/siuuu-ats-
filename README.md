@@ -1,0 +1,33 @@
+# Meridian ATS
+
+A lightweight applicant tracking system for an IT services company that hires against client projects. It is a single self-contained page (`index.html`), with no build step.
+
+## Features
+
+- **Job requisitions**: client, project, billing rate, skills, experience band, CTC range, location, openings, target closure date, recruiter and hiring manager
+- **Candidates**: contact details, current and expected CTC, notice period, experience, skills, source (Naukri, LinkedIn, employee referral, named consultancy, direct), resume link and DPDP consent
+- **Applications**: one candidate can apply to several jobs
+- **Pipeline**: Applied → Screened → Internal Interview → Client Round → Offered → BGV → Joined, plus Rejected and Dropped Out at any point. Every move is time-stamped and records who made it
+- **Duplicate detection**: warns when a phone number or email already exists, and shows which job and recruiter already have the candidate
+- **Notes**: per candidate, with author and time
+- **Interviews**: round, time, panel, mode, outcome and feedback
+- **Offers and BGV**: offered CTC and joining date. BGV must be marked Clear before a candidate can be marked Joined
+- **Flags**: notice period vs. the job's target date, and an offer drop-out risk score
+- **Dashboard**: hires vs. quarterly target, open positions, offer → join rate, time to fill, drop-out and rejection reasons, results by source including consultancy fees, and recruiter workload
+- **Client status update**: generates a ready-to-paste summary for each job
+- **DPDP**: consent capture, erasure per candidate, and bulk erasure of candidates inactive past a retention period
+
+## Storage
+
+The page uses the Claude artifact runtime's shared `db` capability (`window.claude.use("db")`) when it is hosted as a Claude artifact. Opened anywhere else, it runs in preview mode, keeps data in memory only and shows a banner saying so.
+
+To run it standalone with a real backend, replace the storage layer (`put`, `del`, `saveConfig` and the snapshot subscriptions in `boot()`) with calls to your own database, such as Supabase.
+
+## Data model
+
+| Collection | Key fields |
+|---|---|
+| `jobs` | title, client, project, type, skills[], expMin/expMax, ctcMin/ctcMax (₹ lakh), location, openings, targetDate, billingRate, recruiter, hiringManager, status |
+| `candidates` | name, phone, email, currentCompany, currentCtc, expectedCtc, noticeDays, totalExp, skills[], source, sourceDetail, consent, notes[] |
+| `applications` | candidateId, jobId, stage, history[], interviews[], offer, bgv, rejectReason / dropReason |
+| `config/main` | team, managers, consultancies, commission, quarterTarget, retentionMonths |
