@@ -21,7 +21,7 @@ A lightweight applicant tracking system for an IT services company that hires ag
 
 The page picks its storage when it starts:
 
-- **Hosted anywhere else, e.g. Vercel**: it uses the Supabase project `meridian-ats`. Users sign in with email and password. Only emails listed in `team_members` can create an account. Roles:
+- **Hosted anywhere else, e.g. Vercel**: it uses the Supabase project `meridian-ats`. Users sign in with **Clerk** (application "Meridian ATS", development instance `picked-cattle-8969.clerk.accounts.dev`). Supabase trusts Clerk session tokens through its Third-Party Auth integration, and the session token must carry `role` and `email` claims. If `CLERK_PK` in `index.html` is empty, the app falls back to Supabase's own email and password login. Only emails listed in `team_members` can create an account. Roles:
   - `admin`: full access, plus managing the team list in Settings
   - `recruiter`: can add and edit records
   - `viewer`: read-only, for hiring managers
