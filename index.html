@@ -181,6 +181,15 @@ textarea.note-in{width:100%;min-height:64px;border:1px solid var(--line);border-
 .pick:hover{background:#f4f7fa}
 .pick:last-child{border-bottom:0}
 
+.auth-wrap{max-width:400px;margin:6vh auto 0}
+.auth-wrap .card{padding:24px}
+.auth-wrap h1{margin-bottom:4px}
+.auth-wrap .field{margin-top:12px}
+.auth-msg{margin-top:12px;font-size:13px}
+.auth-msg.bad{color:var(--danger)}.auth-msg.good{color:var(--ok)}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;font-size:13px}
+.linkbtn:hover{text-decoration:underline}
+.userchip{color:#c9cbd0;font-size:12.5px;white-space:nowrap}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:6px;align-items:center}
 .toast{background:var(--ink);color:#fff;padding:9px 16px;border-radius:6px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
 .toast.bad{background:var(--danger)}
@@ -225,6 +234,8 @@ const DROP_REASONS=['Accepted another offer','Counter-offer from current employe
 const INTERVIEW_ROUNDS=['Internal L1 (technical)','Internal L2 (technical)','Client round','Managerial','HR'];
 const INTERVIEW_OUTCOMES=['Scheduled','Selected','Rejected','No show','Rescheduled'];
 const BGV_STATUS=['Not started','Initiated','In progress','Clear','Discrepancy'];
+const SUPA_URL='https://bsbpcbgngtlqqrqtabou.supabase.co';
+const SUPA_KEY='sb_publishable_IU10aUVOMpsZB9VmfWTKKA_2MEwZIpR';
 const DEFAULT_CONFIG={team:['Recruiter 1','Recruiter 2','Recruiter 3','Recruiter 4'],managers:[],consultancies:['Consultancy A','Consultancy B','Consultancy C'],commission:8.33,quarterTarget:60,retentionMonths:24};
 
 /* ============================================================
@@ -271,7 +282,7 @@ const reached=(a,stage)=>(a.history||[]).some(h=>h.stage===stage)||stageIdx(a.st
 const daysLeft=j=>j&&j.targetDate?daysFromToday(j.targetDate):null;
 const quarterStart=()=>{const d=new Date();return new Date(d.getFullYear(),Math.floor(d.getMonth()/3)*3,1)};
 const quarterLabel=()=>{const d=new Date(),q=Math.floor(d.getMonth()/3);return ['Jan–Mar','Apr–Jun','Jul–Sep','Oct–Dec'][q]+' '+d.getFullYear()};
-const nameOf=id=>!id?'—':id===S.me?'You':(S.names[id]||'Team member');
+const nameOf=id=>!id?'—':id===S.me?'You':(S.names[id]||(String(id).includes('@')?id:'Team member'));
 const sourceLabel=c=>c.source==='Consultancy'?('Consultancy · '+(c.sourceDetail||'unspecified')):c.source==='Employee Referral'&&c.sourceDetail?('Referral · '+c.sourceDetail):(c.source||'—');
 
 function lastActivity(c){
@@ -314,6 +325,7 @@ async function put(col,obj,{quiet}={}){
   obj.updatedAt=nowISO();
   S[col][obj.id]=obj;
   if(!quiet) scheduleRender();
+  if(S.mode==='supa'){ await enqueue(col+'/'+obj.id,async()=>{const {error}=await S.sb.from(col).upsert({id:obj.id,data:clean(obj)});if(error){handleWriteError(error);throw error}}); return; }
   if(S.mode!=='live') return;
   try{ await enqueue(col+'/'+obj.id,()=>S.db.collection(col).doc(obj.id).set(clean(obj))); }
   catch(e){ handleWriteError(e); throw e; }
@@ -321,18 +333,21 @@ async function put(col,obj,{quiet}={}){
 async function del(col,id,{quiet}={}){
   delete S[col][id];
   if(!quiet) scheduleRender();
+  if(S.mode==='supa'){ await enqueue(col+'/'+id,async()=>{const {error}=await S.sb.from(col).delete().eq('id',id);if(error){handleWriteError(error);throw error}}); return; }
   if(S.mode!=='live') return;
   try{ await enqueue(col+'/'+id,()=>S.db.collection(col).doc(id).delete()); }
   catch(e){ handleWriteError(e); throw e; }
 }
 async function saveConfig(cfg){
   S.config={...S.config,...cfg};scheduleRender();
+  if(S.mode==='supa'){ await enqueue('config',async()=>{const {error}=await S.sb.from('config').upsert({id:'main',data:clean(S.config)});if(error){handleWriteError(error);throw error}}); return; }
   if(S.mode!=='live') return;
   try{ await enqueue('config',()=>S.db.doc('config/main').set(clean(S.config))); }
   catch(e){ handleWriteError(e); throw e; }
 }
 function handleWriteError(e){
   const code=e&&e.code;
+  if(code==='42501'){S.canWrite=false;scheduleRender();toast('You have view-only access, so changes cannot be saved.',true);return}
   if(code==='invalid_argument'&&S.canWrite!==true){S.canWrite=false;scheduleRender();toast('You have view-only access, so changes cannot be saved.',true);return}
   if(code==='quota_exceeded'){toast('Storage is full: erase old candidates in Settings → Data retention.',true);return}
   toast('Could not save: '+(e&&e.message||'unknown error'),true);
@@ -352,9 +367,14 @@ function render(){
   const scroll=window.scrollY;
 
   document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===S.route.view||(S.route.view==='job'&&a.dataset.v==='jobs')||(S.route.view==='cand'&&a.dataset.v==='candidates')));
-  $('#hdr-actions').innerHTML=S.canWrite&&S.mode!=='loading'?`<button class="btn" data-act="newJob">+ Job</button><button class="btn primary" data-act="newCand">+ Candidate</button>`:'';
+  const ready=!['loading','auth','norole'].includes(S.mode);
+  $('#hdr-actions').innerHTML=(S.canWrite&&ready?`<button class="btn" data-act="newJob">+ Job</button><button class="btn primary" data-act="newCand">+ Candidate</button>`:'')
+    +(S.sb&&S.authEmail?`<span class="userchip" title="${esc(S.role||'')}">${esc(S.authEmail)}</span><button class="btn" data-act="signOut">Sign out</button>`:'');
+  $('#nav').style.visibility=['auth','norole'].includes(S.mode)?'hidden':'';
   renderBanner();
   const m=$('#main');
+  if(S.mode==='auth'){m.innerHTML=vAuth();return}
+  if(S.mode==='norole'){m.innerHTML=`<div class="auth-wrap"><div class="card"><h1>No access yet</h1><p class="muted">You're signed in as <b>${esc(S.authEmail)}</b>, but this email isn't on the Meridian ATS team list. Ask your admin to invite you, then sign in again.</p><button class="btn" data-act="signOut">Sign out</button></div></div>`;return}
   if(S.mode==='loading'||(S.mode==='live'&&!S.gotAll&&!S.slow&&!S.dbError)){m.innerHTML='<div class="loading">Loading…</div>';return}
   const v=S.route.view;
   m.innerHTML=v==='jobs'?vJobs():v==='job'?vJob(S.route.id):v==='candidates'?vCands():v==='cand'?vCand(S.route.id):v==='settings'?vSettings():vDashboard();
@@ -365,7 +385,10 @@ function render(){
 }
 function renderBanner(){
   let h='';
-  if(S.mode==='memory') h=`<div class="banner warn">Preview mode — shared storage isn't available in this view, so nothing you enter here is saved.</div>`;
+  if(S.mode==='memory'&&S.supaFail) h=`<div class="banner warn">Couldn't reach the Meridian ATS database. Check your internet connection and reload. Until then this is preview mode and nothing is saved.</div>`;
+  else if(S.mode==='supa'&&S.liveWarn) h=`<div class="banner warn">Live updates paused — reload the page to see colleagues' latest changes.</div>`;
+  else if(S.mode==='supa'&&!S.canWrite) h=`<div class="banner info">View-only access: you can review candidates and pipelines. Ask your admin for recruiter access to make changes.</div>`;
+  else if(S.mode==='memory') h=`<div class="banner warn">Preview mode — shared storage isn't available in this view, so nothing you enter here is saved.</div>`;
   else if(S.dbError==='revoked') h=`<div class="banner warn">Access to the saved data ended. Reload the page to reconnect.</div>`;
   else if(S.dbError) h=`<div class="banner warn">Live updates stopped (${esc(S.dbError)}). Reload the page to reconnect.</div>`;
   else if(S.slow) h=`<div class="banner warn">Can't reach the saved data yet — what you see may be out of date.</div>`;
@@ -671,14 +694,100 @@ function vSettings(){
       ${w?`<div class="btn-row" style="margin-top:10px"><button class="btn danger" data-act="purgeStale">Erase all ${stale.length}</button></div>`:''}`:''}
       <p class="small muted" style="margin-bottom:0">To act on an individual's erasure request, open their record and use “Erase candidate data”.</p>
     </div>
-    <div class="card" style="margin-top:14px">
+    ${S.mode==='supa'?vTeam():`<div class="card" style="margin-top:14px">
       <h3>Access</h3>
       <p class="small" style="margin:0">Share this page from its menu on claude.ai. Give <b>recruiters</b> Contributor access so they can add and move candidates. Give <b>hiring managers</b> Viewer access to review pipelines read-only, or Contributor if they should add notes and interview feedback.</p>
-    </div>
+    </div>`}
     ${w&&demo?`<div class="card" style="margin-top:14px"><h3>Sample data</h3><p class="small" style="margin-top:0">Sample requisitions and candidates are loaded.</p><button class="btn danger" data-act="clearSample">Remove sample data</button></div>`:''}
     ${w&&!demo&&!list('jobs').length?`<div class="card" style="margin-top:14px"><h3>Sample data</h3><button class="btn" data-act="loadSample">Load sample data</button></div>`:''}
   </div></div>`;
 }
+
+/* ---------------- Auth & team (Supabase mode) ---------------- */
+function vAuth(){
+  const v=S.authView||'login';const msg=S.authMsg?`<div class="auth-msg ${S.authMsg.bad?'bad':'good'}">${esc(S.authMsg.text)}</div>`:'';
+  const em=esc(S.authEmailDraft||'');
+  if(v==='signup') return `<div class="auth-wrap"><form class="card" data-form="signup"><h1>Create your account</h1><div class="muted small">For invited Meridian team members only.</div>
+    ${field('Work email',`<input name="email" type="email" required autocomplete="email" value="${em}">`)}
+    ${field('Choose a password',`<input name="password" type="password" required minlength="8" autocomplete="new-password">`,{hint:'At least 8 characters'})}
+    ${field('Confirm password',`<input name="password2" type="password" required minlength="8" autocomplete="new-password">`)}
+    <div class="btn-row" style="margin-top:16px"><button class="btn primary">Create account</button><button type="button" class="linkbtn" data-act="authView" data-v="login">I already have an account</button></div>${msg}</form></div>`;
+  if(v==='forgot') return `<div class="auth-wrap"><form class="card" data-form="forgot"><h1>Reset password</h1><div class="muted small">We'll email you a link to set a new password.</div>
+    ${field('Work email',`<input name="email" type="email" required autocomplete="email" value="${em}">`)}
+    <div class="btn-row" style="margin-top:16px"><button class="btn primary">Send reset link</button><button type="button" class="linkbtn" data-act="authView" data-v="login">Back to sign in</button></div>${msg}</form></div>`;
+  if(v==='reset') return `<div class="auth-wrap"><form class="card" data-form="reset"><h1>Set a new password</h1>
+    ${field('New password',`<input name="password" type="password" required minlength="8" autocomplete="new-password">`)}
+    <div class="btn-row" style="margin-top:16px"><button class="btn primary">Save password</button></div>${msg}</form></div>`;
+  return `<div class="auth-wrap"><form class="card" data-form="login"><h1>Sign in</h1><div class="muted small">Meridian Technologies · Talent Acquisition</div>
+    ${field('Work email',`<input name="email" type="email" required autocomplete="email" value="${em}">`)}
+    ${field('Password',`<input name="password" type="password" required autocomplete="current-password">`)}
+    <div class="btn-row" style="margin-top:16px"><button class="btn primary">Sign in</button><button type="button" class="linkbtn" data-act="authView" data-v="forgot">Forgot password?</button></div>${msg}
+    <div class="small muted" style="margin-top:16px;border-top:1px solid var(--line-2);padding-top:12px">First time here? <button type="button" class="linkbtn" data-act="authView" data-v="signup">Create your account</button> — you need an invite from your admin.</div></form></div>`;
+}
+function setAuthMsg(text,bad){S.authMsg=text?{text,bad}:null;render()}
+function vTeam(){
+  const admin=S.role==='admin';const team=(S.team||[]).slice().sort((a,b)=>a.email<b.email?-1:1);
+  return `<div class="card" style="margin-top:14px"><h3>Team access</h3>
+    <p class="small" style="margin-top:0">Only people listed here can create an account and sign in. <b>Admin</b>: everything plus managing this list. <b>Recruiter</b>: add and edit. <b>Viewer</b>: read-only, for hiring managers.</p>
+    <table><tbody>${team.map(m=>`<tr><td><b>${esc(m.name||'')}</b><div class="small muted">${esc(m.email)}</div></td><td>${admin&&m.email!==S.authEmail?`<select data-act-change="role" data-email="${esc(m.email)}" style="border:1px solid var(--line);border-radius:6px;padding:4px 6px">${['admin','recruiter','viewer'].map(r=>`<option ${m.role===r?'selected':''}>${r}</option>`).join('')}</select>`:esc(m.role)}</td><td>${admin&&m.email!==S.authEmail?`<button class="btn sm danger" data-act="delMember" data-email="${esc(m.email)}">Remove</button>`:''}</td></tr>`).join('')}</tbody></table>
+    ${admin?`<form data-form="member" class="form" style="margin-top:12px;grid-template-columns:2fr 1.4fr 1fr auto;align-items:end">
+      ${field('Email',`<input name="email" type="email" required>`)}${field('Name',`<input name="name">`)}${field('Role',sel('role',['recruiter','viewer','admin'],'recruiter'))}<button class="btn primary">Invite</button></form>
+      <p class="small muted" style="margin-bottom:0">After you invite someone, send them the site link. They click <b>Create your account</b> and choose a password.</p>`:''}
+  </div>`;
+}
+async function loadTeam(){const {data,error}=await S.sb.from('team_members').select('*');if(!error){S.team=data||[];S.names={};for(const m of S.team)S.names[m.email]=m.name||m.email;scheduleRender()}}
+function loadScript(src){return new Promise((res,rej)=>{const el=document.createElement('script');el.src=src;el.onload=res;el.onerror=rej;document.head.appendChild(el)})}
+async function bootSupa(){
+  S.mode='loading';render();
+  try{if(!window.supabase)await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js')}catch(_){S.mode='memory';S.supaFail=true;render();return}
+  const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);S.sb=sb;
+  sb.auth.onAuthStateChange((ev,session)=>{
+    if(ev==='PASSWORD_RECOVERY'){S.authView='reset';S.authMsg=null;S.mode='auth';setTimeout(render,0)}
+    else if(ev==='SIGNED_OUT'){setTimeout(()=>location.reload(),0)}
+    else if(ev==='SIGNED_IN'&&session&&!S.started&&S.authView!=='reset'){setTimeout(()=>startSupa(session),0)}
+  });
+  const {data:{session}}=await sb.auth.getSession();
+  if(session&&!S.started&&S.authView!=='reset') await startSupa(session);
+  else if(!session&&S.authView!=='reset'){S.mode='auth';render()}
+}
+async function startSupa(session){
+  if(S.started)return;S.started=true;
+  const sb=S.sb;S.authEmail=(session.user.email||'').toLowerCase();S.me=S.authEmail;
+  S.mode='loading';render();
+  const {data:role}=await sb.rpc('my_role');S.role=role||null;
+  if(!S.role){S.mode='norole';render();return}
+  S.canWrite=S.role!=='viewer';
+  const load=async t=>{const out={};for(let from=0;;from+=1000){const {data,error}=await sb.from(t).select('id,data').range(from,from+999);if(error)throw error;for(const r of data)out[r.id]={...r.data,id:r.id};if(data.length<1000)break}return out};
+  try{
+    const [jobs,cands,apps,cfg]=await Promise.all([load('jobs'),load('candidates'),load('applications'),sb.from('config').select('data').eq('id','main').maybeSingle()]);
+    S.jobs=jobs;S.candidates=cands;S.applications=apps;if(cfg.data&&cfg.data.data)S.config={...DEFAULT_CONFIG,...cfg.data.data};
+  }catch(e){S.mode='memory';S.supaFail=true;render();return}
+  await loadTeam();
+  sb.channel('ats-live').on('postgres_changes',{event:'*',schema:'public'},p=>{
+    const t=p.table;
+    if(t==='config'){if(p.new&&p.new.data)S.config={...DEFAULT_CONFIG,...p.new.data}}
+    else if(['jobs','candidates','applications'].includes(t)){if(p.eventType==='DELETE'){if(p.old&&p.old.id)delete S[t][p.old.id]}else if(p.new&&p.new.id){S[t][p.new.id]={...p.new.data,id:p.new.id}}}
+    scheduleRender();
+  }).subscribe(st=>{if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'){S.liveWarn=true;scheduleRender()}else if(st==='SUBSCRIBED'&&S.liveWarn){S.liveWarn=false;scheduleRender()}});
+  S.mode='supa';render();
+}
+const AUTH_FORMS={
+  login:async(f,fd)=>{S.authEmailDraft=fd.get('email');setAuthMsg('Signing in…');
+    const {error}=await S.sb.auth.signInWithPassword({email:fd.get('email').trim(),password:fd.get('password')});
+    if(error)setAuthMsg(error.message==='Invalid login credentials'?'Wrong email or password.':error.message,true)},
+  signup:async(f,fd)=>{const email=fd.get('email').trim().toLowerCase();S.authEmailDraft=email;
+    if(fd.get('password')!==fd.get('password2'))return setAuthMsg('The two passwords don\'t match.',true);
+    setAuthMsg('Checking your invite…');
+    const {data:ok}=await S.sb.rpc('is_invited',{p_email:email});
+    if(!ok)return setAuthMsg('This email hasn\'t been invited yet. Ask your admin to add you in Settings → Team access.',true);
+    const {data,error}=await S.sb.auth.signUp({email,password:fd.get('password'),options:{emailRedirectTo:location.origin}});
+    if(error)return setAuthMsg(/already registered/i.test(error.message)?'An account with this email already exists — sign in instead.':error.message,true);
+    if(!data.session){S.authView='login';setAuthMsg('Account created. Check your inbox for a confirmation email, click the link, then sign in here.')}},
+  forgot:async(f,fd)=>{S.authEmailDraft=fd.get('email');const {error}=await S.sb.auth.resetPasswordForEmail(fd.get('email').trim(),{redirectTo:location.origin});
+    setAuthMsg(error?error.message:'If that email has an account, a reset link is on its way.',!!error)},
+  reset:async(f,fd)=>{const {error}=await S.sb.auth.updateUser({password:fd.get('password')});
+    if(error)return setAuthMsg(error.message,true);S.authView='login';S.authMsg=null;const {data:{session}}=await S.sb.auth.getSession();if(session)startSupa(session)},
+};
 
 /* ============================================================
    Modals
@@ -889,6 +998,9 @@ const ACT={
     confirmBox('Erase inactive candidates',`Permanently erase ${plural(stale.length,'candidate')} and their applications?`,'Erase all',async()=>{await runPool(stale.map(c=>()=>eraseCandidate(c.id,true)));scheduleRender();toast('Erased '+plural(stale.length,'candidate'))})},
   confirmYes:async()=>{const f=S._confirm;S._confirm=null;closeModal();if(f)try{await f()}catch(_){}},
   loadSample:()=>loadSample(),
+  authView:d=>{S.authView=d.v;S.authMsg=null;render()},
+  signOut:async()=>{if(S.sb)await S.sb.auth.signOut();location.reload()},
+  delMember:d=>confirmBox('Remove access',`Remove <b>${esc(d.email)}</b> from Meridian ATS? They won't be able to see any data.`,'Remove',async()=>{const {error}=await S.sb.from('team_members').delete().eq('email',d.email);if(error)toast(error.message,true);await loadTeam()}),
   clearSample:()=>confirmBox('Remove sample data','Remove all sample requisitions, candidates and applications? Records you added yourself are kept.','Remove',clearSample),
 };
 async function eraseCandidate(id,quiet){
@@ -940,6 +1052,9 @@ const FORMS={
     if(f.dataset.k!=='')iv[+f.dataset.k]=x;else iv.push(x);
     closeModal();await put('applications',{...a,interviews:iv});toast('Interview saved');
   },
+  member:async(f,fd)=>{const email=fd.get('email').trim().toLowerCase();
+    const {error}=await S.sb.from('team_members').upsert({email,name:fd.get('name').trim()||null,role:fd.get('role')});
+    if(error)return toast(error.message,true);f.reset();await loadTeam();toast('Invited '+email)},
   config:async(f,fd)=>{
     await saveConfig({team:splitList(fd.get('team')),managers:splitList(fd.get('managers')),consultancies:splitList(fd.get('consultancies')),commission:num(fd.get('commission'))??8.33,quarterTarget:num(fd.get('quarterTarget'))||60,retentionMonths:num(fd.get('retentionMonths'))||24});
     toast('Settings saved');
@@ -960,7 +1075,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('submit',e=>{
   const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();
-  const fn=FORMS[f.dataset.form];if(fn)Promise.resolve(fn(f,new FormData(f))).catch(()=>{});
+  const fn=FORMS[f.dataset.form]||AUTH_FORMS[f.dataset.form];if(fn)Promise.resolve(fn(f,new FormData(f))).catch(()=>{});
 });
 document.addEventListener('input',e=>{
   const t=e.target;
@@ -974,6 +1089,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.filter&&t.type==='checkbox'){const [g,k]=t.dataset.filter.split('.');S.f[g][k]=t.checked;scheduleRender();return}
   if(t.hasAttribute('data-src')){const box=t.closest('form').querySelector('[data-srcdetail]');box.innerHTML=srcDetail(t.value,'');return}
   if(t.hasAttribute('data-kind')){t.closest('form').querySelector('[data-reasons]').innerHTML=reasonSel(t.value);return}
+  if(t.dataset.actChange==='role'){S.sb.from('team_members').update({role:t.value}).eq('email',t.dataset.email).then(({error})=>{if(error)toast(error.message,true);else toast('Role updated');loadTeam()});return}
   if(t.dataset.actChange==='bgv'){const a=S.applications[t.dataset.id];put('applications',{...a,bgv:t.value}).then(()=>toast('BGV: '+t.value)).catch(()=>{})}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal-root').innerHTML)closeModal()});
@@ -1063,9 +1179,8 @@ async function boot(){
   route();
   const cl=window.claude;
   let db=null,user=null;
-  if(cl&&typeof cl.use==='function'){
-    try{[db,user]=await Promise.all([cl.use('db').catch(()=>null),cl.use('user').catch(()=>null)])}catch(_){}
-  }
+  if(!(cl&&typeof cl.use==='function')){return bootSupa()}
+  try{[db,user]=await Promise.all([cl.use('db').catch(()=>null),cl.use('user').catch(()=>null)])}catch(_){}
   S.user=user;
   if(user){
     try{S.me=await user.id()}catch(_){}

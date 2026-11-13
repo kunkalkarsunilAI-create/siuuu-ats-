@@ -17,11 +17,23 @@ A lightweight applicant tracking system for an IT services company that hires ag
 - **Client status update**: generates a ready-to-paste summary for each job
 - **DPDP**: consent capture, erasure per candidate, and bulk erasure of candidates inactive past a retention period
 
-## Storage
+## Storage and sign-in
 
-The page uses the Claude artifact runtime's shared `db` capability (`window.claude.use("db")`) when it is hosted as a Claude artifact. Opened anywhere else, it runs in preview mode, keeps data in memory only and shows a banner saying so.
+The page picks its storage when it starts:
 
-To run it standalone with a real backend, replace the storage layer (`put`, `del`, `saveConfig` and the snapshot subscriptions in `boot()`) with calls to your own database, such as Supabase.
+- **Hosted anywhere else, e.g. Vercel**: it uses the Supabase project `meridian-ats`. Users sign in with email and password. Only emails listed in `team_members` can create an account. Roles:
+  - `admin`: full access, plus managing the team list in Settings
+  - `recruiter`: can add and edit records
+  - `viewer`: read-only, for hiring managers
+
+  Changes from colleagues appear live through Supabase Realtime. Every insert, update and delete is written to `audit_log` (no personal data is kept there).
+- **Hosted as a Claude artifact**: it uses the artifact runtime's shared `db` capability.
+
+The database schema, access rules (row level security) and triggers are in `supabase/migrations/`. The Supabase URL and publishable key in `index.html` are safe to expose: all access is enforced by row level security.
+
+### Supabase settings to check
+
+In the Supabase dashboard, open Authentication → URL Configuration and set **Site URL** to the deployed address, e.g. `https://siuuu-ats.vercel.app`. Confirmation and password-reset emails link back to that address.
 
 ## Data model
 
