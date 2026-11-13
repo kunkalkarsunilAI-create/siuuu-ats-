@@ -190,6 +190,18 @@ textarea.note-in{width:100%;min-height:64px;border:1px solid var(--line);border-
 .linkbtn{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;font-size:13px}
 .linkbtn:hover{text-decoration:underline}
 .userchip{color:#c9cbd0;font-size:12.5px;white-space:nowrap}
+.login{display:grid;grid-template-columns:1.1fr 1fr;min-height:calc(100vh - 54px);margin:-22px -24px -60px}
+.login-brand{background:linear-gradient(160deg,#17324a 0%,#1d5a8a 100%);color:#fff;padding:9vh 7vw;display:flex;flex-direction:column;justify-content:center}
+.login-brand h1{font-size:30px;line-height:1.2;color:#fff;margin:0 0 12px;letter-spacing:-.4px}
+.login-brand p{color:#cfe0ee;margin:0 0 26px;max-width:440px;font-size:15px}
+.login-brand ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px;max-width:440px}
+.login-brand li{display:flex;gap:10px;color:#e6eff7;font-size:14px}
+.login-brand li b{color:#fff;font-weight:600}
+.login-brand .dot{flex:none;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:12px}
+.login-brand .foot{margin-top:40px;font-size:12px;color:#9fbcd6}
+.login-form{display:flex;align-items:center;justify-content:center;padding:40px 20px}
+@media (max-width:860px){.login{grid-template-columns:1fr}.login-brand{padding:36px 24px}.login-brand ul,.login-brand .foot{display:none}}
+#userbtn{display:flex;align-items:center}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:6px;align-items:center}
 .toast{background:var(--ink);color:#fff;padding:9px 16px;border-radius:6px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
 .toast.bad{background:var(--danger)}
@@ -215,6 +227,7 @@ textarea.note-in{width:100%;min-height:64px;border:1px solid var(--line);border-
   </nav>
   <div class="hspace"></div>
   <div class="btn-row hide-sm" id="hdr-actions"></div>
+  <div id="userbtn"></div>
 </header>
 <div id="banner"></div>
 <main id="main"><div class="loading">Loading…</div></main>
@@ -235,6 +248,8 @@ const INTERVIEW_ROUNDS=['Internal L1 (technical)','Internal L2 (technical)','Cli
 const INTERVIEW_OUTCOMES=['Scheduled','Selected','Rejected','No show','Rescheduled'];
 const BGV_STATUS=['Not started','Initiated','In progress','Clear','Discrepancy'];
 const SUPA_URL='https://bsbpcbgngtlqqrqtabou.supabase.co';
+// Clerk publishable key (pk_test_… or pk_live_…). Leave empty to use Supabase's own email/password login.
+const CLERK_PK='';
 const SUPA_KEY='sb_publishable_IU10aUVOMpsZB9VmfWTKKA_2MEwZIpR';
 const DEFAULT_CONFIG={team:['Recruiter 1','Recruiter 2','Recruiter 3','Recruiter 4'],managers:[],consultancies:['Consultancy A','Consultancy B','Consultancy C'],commission:8.33,quarterTarget:60,retentionMonths:24};
 
@@ -369,12 +384,13 @@ function render(){
   document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===S.route.view||(S.route.view==='job'&&a.dataset.v==='jobs')||(S.route.view==='cand'&&a.dataset.v==='candidates')));
   const ready=!['loading','auth','norole'].includes(S.mode);
   $('#hdr-actions').innerHTML=(S.canWrite&&ready?`<button class="btn" data-act="newJob">+ Job</button><button class="btn primary" data-act="newCand">+ Candidate</button>`:'')
-    +(S.sb&&S.authEmail?`<span class="userchip" title="${esc(S.role||'')}">${esc(S.authEmail)}</span><button class="btn" data-act="signOut">Sign out</button>`:'');
+    +(S.sb&&S.authEmail&&!S.clerk?`<span class="userchip" title="${esc(S.role||'')}">${esc(S.authEmail)}</span><button class="btn" data-act="signOut">Sign out</button>`:'');
   $('#nav').style.visibility=['auth','norole'].includes(S.mode)?'hidden':'';
   renderBanner();
   const m=$('#main');
+  if(S.mode==='auth'&&S.clerk){if(!$('#clerk-signin')){m.innerHTML=vLoginClerk();try{S.clerk.mountSignIn($('#clerk-signin'),{routing:'virtual',withSignUp:true,fallbackRedirectUrl:location.origin+location.pathname})}catch(e){$('#clerk-signin').textContent='Could not load the sign-in form: '+e.message}}return}
   if(S.mode==='auth'){m.innerHTML=vAuth();return}
-  if(S.mode==='norole'){m.innerHTML=`<div class="auth-wrap"><div class="card"><h1>No access yet</h1><p class="muted">You're signed in as <b>${esc(S.authEmail)}</b>, but this email isn't on the Meridian ATS team list. Ask your admin to invite you, then sign in again.</p><button class="btn" data-act="signOut">Sign out</button></div></div>`;return}
+  if(S.mode==='norole'){m.innerHTML=`<div class="auth-wrap"><div class="card"><h1>No access yet</h1><p class="muted">You're signed in as <b>${esc(S.authEmail)}</b>, but this email isn't on the Meridian ATS team list. Ask your admin to invite you, then sign in again.</p>${S.noEmailClaim?'<div class="alert amber" style="margin-bottom:12px"><b>Setup issue:</b> the Clerk session token has no <code>email</code> claim, so the database can\'t tell who you are. In Clerk → Sessions → Customize session token, add <code>"email": "{{user.primary_email_address}}"</code>.</div>':''}<button class="btn" data-act="signOut">Sign out</button></div></div>`;return}
   if(S.mode==='loading'||(S.mode==='live'&&!S.gotAll&&!S.slow&&!S.dbError)){m.innerHTML='<div class="loading">Loading…</div>';return}
   const v=S.route.view;
   m.innerHTML=v==='jobs'?vJobs():v==='job'?vJob(S.route.id):v==='candidates'?vCands():v==='cand'?vCand(S.route.id):v==='settings'?vSettings():vDashboard();
@@ -724,6 +740,44 @@ function vAuth(){
     <div class="btn-row" style="margin-top:16px"><button class="btn primary">Sign in</button><button type="button" class="linkbtn" data-act="authView" data-v="forgot">Forgot password?</button></div>${msg}
     <div class="small muted" style="margin-top:16px;border-top:1px solid var(--line-2);padding-top:12px">First time here? <button type="button" class="linkbtn" data-act="authView" data-v="signup">Create your account</button> — you need an invite from your admin.</div></form></div>`;
 }
+function vLoginClerk(){
+  return `<div class="login"><div class="login-brand">
+    <h1>Meridian ATS</h1><p>One shared place for every requisition, candidate and client pipeline at Meridian Technologies.</p>
+    <ul>
+      <li><span class="dot">✓</span><span><b>No more double calls</b> — duplicate candidates are flagged the moment they're entered.</span></li>
+      <li><span class="dot">✓</span><span><b>Client status in seconds</b> — every pipeline, interview and offer in one view.</span></li>
+      <li><span class="dot">✓</span><span><b>Know your offer-to-join rate</b> — and which sources and consultancies actually deliver.</span></li>
+    </ul>
+    <div class="foot">Access is by invitation from the Talent Acquisition team.</div>
+  </div><div class="login-form"><div id="clerk-signin"></div></div></div>`;
+}
+function loadScriptAttrs(src,attrs){return new Promise((res,rej)=>{const el=document.createElement('script');el.src=src;el.async=true;el.crossOrigin='anonymous';for(const k in attrs)el.setAttribute(k,attrs[k]);el.onload=res;el.onerror=rej;document.head.appendChild(el)})}
+function jwtClaims(t){try{return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))}catch(_){return {}}}
+async function bootClerk(){
+  S.mode='loading';render();
+  let fapi;try{fapi=atob(CLERK_PK.split('_')[2]).replace(/\$$/,'')}catch(_){S.mode='memory';S.supaFail=true;render();return}
+  try{
+    await Promise.all([
+      window.supabase?null:loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'),
+      window.Clerk?null:loadScriptAttrs(`https://${fapi}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`,{'data-clerk-publishable-key':CLERK_PK})
+    ]);
+    await window.Clerk.load({appearance:{variables:{colorPrimary:'#1d5a8a',fontFamily:'"IBM Plex Sans",system-ui,sans-serif',borderRadius:'8px'}}});
+  }catch(e){console.error(e);S.mode='memory';S.supaFail=true;render();return}
+  S.clerk=window.Clerk;
+  S.sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{accessToken:async()=>(S.clerk.session?await S.clerk.session.getToken():null)});
+  const sync=()=>{
+    if(S.clerk.user&&S.clerk.session){if(!S.started)startClerk()}
+    else{if(S.started){location.reload();return}if(S.mode!=='auth'){S.mode='auth';render()}}
+  };
+  S.clerk.addListener(sync);sync();
+}
+async function startClerk(){
+  if(S.started)return;S.started=true;
+  const u=S.clerk.user;S.authEmail=((u.primaryEmailAddress&&u.primaryEmailAddress.emailAddress)||'').toLowerCase();S.me=S.authEmail;
+  try{const tok=await S.clerk.session.getToken();S.noEmailClaim=!jwtClaims(tok).email}catch(_){}
+  try{S.clerk.mountUserButton($('#userbtn'),{afterSignOutUrl:location.origin+location.pathname})}catch(_){}
+  await startData();
+}
 function setAuthMsg(text,bad){S.authMsg=text?{text,bad}:null;render()}
 function vTeam(){
   const admin=S.role==='admin';const team=(S.team||[]).slice().sort((a,b)=>a.email<b.email?-1:1);
@@ -732,12 +786,13 @@ function vTeam(){
     <table><tbody>${team.map(m=>`<tr><td><b>${esc(m.name||'')}</b><div class="small muted">${esc(m.email)}</div></td><td>${admin&&m.email!==S.authEmail?`<select data-act-change="role" data-email="${esc(m.email)}" style="border:1px solid var(--line);border-radius:6px;padding:4px 6px">${['admin','recruiter','viewer'].map(r=>`<option ${m.role===r?'selected':''}>${r}</option>`).join('')}</select>`:esc(m.role)}</td><td>${admin&&m.email!==S.authEmail?`<button class="btn sm danger" data-act="delMember" data-email="${esc(m.email)}">Remove</button>`:''}</td></tr>`).join('')}</tbody></table>
     ${admin?`<form data-form="member" class="form" style="margin-top:12px;grid-template-columns:2fr 1.4fr 1fr auto;align-items:end">
       ${field('Email',`<input name="email" type="email" required>`)}${field('Name',`<input name="name">`)}${field('Role',sel('role',['recruiter','viewer','admin'],'recruiter'))}<button class="btn primary">Invite</button></form>
-      <p class="small muted" style="margin-bottom:0">After you invite someone, send them the site link. They click <b>Create your account</b> and choose a password.</p>`:''}
+      <p class="small muted" style="margin-bottom:0">After you invite someone, send them the site link. ${S.clerk?'They sign up with that same email address.':'They click <b>Create your account</b> and choose a password.'}</p>`:''}
   </div>`;
 }
 async function loadTeam(){const {data,error}=await S.sb.from('team_members').select('*');if(!error){S.team=data||[];S.names={};for(const m of S.team)S.names[m.email]=m.name||m.email;scheduleRender()}}
 function loadScript(src){return new Promise((res,rej)=>{const el=document.createElement('script');el.src=src;el.onload=res;el.onerror=rej;document.head.appendChild(el)})}
 async function bootSupa(){
+  if(CLERK_PK)return bootClerk();
   S.mode='loading';render();
   try{if(!window.supabase)await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js')}catch(_){S.mode='memory';S.supaFail=true;render();return}
   const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);S.sb=sb;
@@ -752,7 +807,11 @@ async function bootSupa(){
 }
 async function startSupa(session){
   if(S.started)return;S.started=true;
-  const sb=S.sb;S.authEmail=(session.user.email||'').toLowerCase();S.me=S.authEmail;
+  S.authEmail=(session.user.email||'').toLowerCase();S.me=S.authEmail;
+  await startData();
+}
+async function startData(){
+  const sb=S.sb;
   S.mode='loading';render();
   const {data:role}=await sb.rpc('my_role');S.role=role||null;
   if(!S.role){S.mode='norole';render();return}
@@ -999,7 +1058,7 @@ const ACT={
   confirmYes:async()=>{const f=S._confirm;S._confirm=null;closeModal();if(f)try{await f()}catch(_){}},
   loadSample:()=>loadSample(),
   authView:d=>{S.authView=d.v;S.authMsg=null;render()},
-  signOut:async()=>{if(S.sb)await S.sb.auth.signOut();location.reload()},
+  signOut:async()=>{if(S.clerk)await S.clerk.signOut();else if(S.sb)await S.sb.auth.signOut();location.reload()},
   delMember:d=>confirmBox('Remove access',`Remove <b>${esc(d.email)}</b> from Meridian ATS? They won't be able to see any data.`,'Remove',async()=>{const {error}=await S.sb.from('team_members').delete().eq('email',d.email);if(error)toast(error.message,true);await loadTeam()}),
   clearSample:()=>confirmBox('Remove sample data','Remove all sample requisitions, candidates and applications? Records you added yourself are kept.','Remove',clearSample),
 };
